@@ -17,33 +17,77 @@
   var listeners = [];
 
   /* ── Session cache (API backend only) ──────────────────────────
-     Every Apps Script call costs about 1.9s before it reads a single
-     row — the redirect hop and script startup — and this is a
-     multi-page app, so each nav is a fresh document that would pay it
-     again. Holding reads in sessionStorage makes navigation instant
-     within a session; the TTL keeps a teammate's edits from staying
-     invisible for long, and writes refresh their own collection
-     immediately. localStorage is deliberately not used: a stale copy
-     shouldn't outlive the tab.
+     Every Apps Script call costs ~1.9s before it reads a single row —
+     the redirect hop and script startup — plus ~0.26s per collection.
+     A cold page load is worse still, because the shell fetches the
+     signed-in member and the badge counts before the page fetches its
+     own data: three sequential round trips, measured at 8.9s.
+
+     So reads are served stale-while-revalidate. A cached copy renders
+     immediately no matter its age, and anything past FRESH_MS is
+     refreshed in the background for the next navigation. Only a
+     collection with no cache at all blocks on the network. The cost is
+     paid once per session instead of on a repeating timer, and edits
+     from elsewhere land one navigation later rather than never.
+
+     localStorage is deliberately not used: a stale copy of the
+     workspace shouldn't outlive the tab.
      ────────────────────────────────────────────────────────────── */
 
-  var SESSION_TTL_MS = 60000;
+  var FRESH_MS = 30000;
+  var revalidating = {}; // collection → true while a background refresh is out
 
   function sessionKey(collection) {
     return WOS.config.storagePrefix + "cache." + collection;
   }
 
+  /** @returns {{rows: Array, fresh: boolean}|null} */
   function sessionRead(collection) {
     try {
       var raw = sessionStorage.getItem(sessionKey(collection));
       if (!raw) return null;
       var entry = JSON.parse(raw);
-      if (!entry || typeof entry.at !== "number") return null;
-      if (Date.now() - entry.at > SESSION_TTL_MS) return null;
-      return entry.rows;
+      if (!entry || typeof entry.at !== "number" || !entry.rows) return null;
+      return { rows: entry.rows, fresh: Date.now() - entry.at <= FRESH_MS };
     } catch (err) {
       return null; // unreadable or disabled — just miss the cache
     }
+  }
+
+  /**
+   * Refresh collections in the background and notify listeners if anything
+   * actually changed, so a page sitting open picks up edits without a manual
+   * reload. Failures are swallowed: the cached copy is already on screen and
+   * a background refresh is not something to interrupt the user over.
+   */
+  function revalidate(names) {
+    var due = names.filter(function (name) {
+      return !revalidating[name];
+    });
+    if (!due.length) return;
+
+    due.forEach(function (name) {
+      revalidating[name] = true;
+    });
+
+    rpc(null, "listMany", { collections: due })
+      .then(function (fetched) {
+        due.forEach(function (name) {
+          var rows = (fetched && fetched[name]) || [];
+          var changed = JSON.stringify(rows) !== JSON.stringify(cache[name]);
+          cache[name] = rows;
+          sessionWrite(name, rows);
+          if (changed) emit(name);
+        });
+      })
+      .catch(function (error) {
+        console.warn("[wos] background refresh failed", error);
+      })
+      .then(function () {
+        due.forEach(function (name) {
+          delete revalidating[name];
+        });
+      });
   }
 
   function sessionWrite(collection, rows) {
@@ -131,8 +175,9 @@
 
     var cached = sessionRead(collection);
     if (cached) {
-      cache[collection] = cached;
-      return Promise.resolve(cached);
+      cache[collection] = cached.rows;
+      if (!cached.fresh) revalidate([collection]);
+      return Promise.resolve(cached.rows);
     }
 
     return rpc(collection, "list").then(function (rows) {
@@ -158,17 +203,21 @@
     }
 
     var missing = [];
+    var stale = [];
     names.forEach(function (name) {
       if (cache[name]) return;
       var cached = sessionRead(name);
       if (cached) {
-        cache[name] = cached;
+        cache[name] = cached.rows;
+        if (!cached.fresh) stale.push(name);
         return;
       }
       missing.push(name);
     });
 
     if (!missing.length) {
+      // Everything is on hand — render now, refresh anything aging behind it.
+      if (stale.length) revalidate(stale);
       return Promise.resolve(
         zip(
           names,
@@ -178,6 +227,8 @@
         ),
       );
     }
+
+    if (stale.length) revalidate(stale);
 
     return rpc(null, "listMany", { collections: missing })
       .catch(function (error) {
