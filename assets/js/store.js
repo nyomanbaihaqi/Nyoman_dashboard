@@ -192,6 +192,46 @@
     });
   }
 
+  /**
+   * Copy the sample data into the Sheets backend, one bulk write per
+   * collection.
+   *
+   * Deliberately talks to the API regardless of the active backend, so it can
+   * be run while still on "local" — that's the useful order: fill the
+   * spreadsheet first, confirm it looks right, then switch config.js over.
+   *
+   * Refuses to run if `members` already has rows, so a stray second click
+   * can't duplicate every record in the workspace.
+   *
+   * @returns {Promise<{seeded: boolean, counts?: object}>}
+   */
+  function seedRemote() {
+    return rpc("members", "list").then(function (existing) {
+      if (existing && existing.length) return { seeded: false };
+
+      var data = WOS.seed();
+      var names = WOS.COLLECTIONS.filter(function (name) {
+        return (data[name] || []).length;
+      });
+
+      // Sequential, not parallel: each write takes the Apps Script lock, so
+      // firing 17 at once just makes them queue behind each other anyway —
+      // and a failure part-way is easier to reason about in order.
+      var counts = {};
+      return names
+        .reduce(function (chain, name) {
+          return chain.then(function () {
+            return rpc(name, "createMany", { rows: data[name] }).then(function () {
+              counts[name] = data[name].length;
+            });
+          });
+        }, Promise.resolve())
+        .then(function () {
+          return { seeded: true, counts: counts };
+        });
+    });
+  }
+
   /* ── Change notification ───────────────────────────────────── */
 
   function emit(collection) {
@@ -254,6 +294,7 @@
     update: update,
     remove: remove,
     resetLocal: resetLocal,
+    seedRemote: seedRemote,
     onChange: onChange,
     currentUser: currentUser,
     navCounts: navCounts,

@@ -107,7 +107,10 @@
       '<h2 class="card__title">' + esc(t("settings.dataBackend")) + "</h2>" +
       '<p class="text-sm" style="margin-top:10px;color:var(--text-body)">' +
       esc(WOS.config.backend === "api" ? t("settings.backend.api") : t("settings.backend.local")) + "</p>" +
-      '<p class="text-label muted" style="margin-top:6px">' + esc(t("settings.backendHint")) + "</p></div>" +
+      '<p class="text-label muted" style="margin-top:6px">' + esc(t("settings.backendHint")) + "</p>" +
+      '<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border-subtle)">' +
+      '<button type="button" class="btn btn--outline btn--sm" data-seed-remote>' + esc(t("settings.seedSheets")) + "</button>" +
+      '<p class="text-label muted" style="margin-top:8px">' + esc(t("settings.seedSheetsHint")) + "</p></div></div>" +
       '<div class="card" style="margin-top:20px">' +
       '<h2 class="card__title">' + esc(t("settings.resetData")) + "</h2>" +
       '<div style="margin-top:12px"><button type="button" class="btn btn--danger btn--sm" data-reset-data>' + esc(t("settings.resetData")) + "</button></div></div>"
@@ -217,6 +220,24 @@
 
     WOS.on(page, "click", "[data-set-locale]", function (event, target) {
       WOS.i18n.setLocale(target.dataset.setLocale);
+    });
+
+    WOS.on(page, "click", "[data-seed-remote]", function (event, target) {
+      target.disabled = true;
+      ui.toast(t("settings.seedSheetsRunning"));
+
+      WOS.db
+        .seedRemote()
+        .then(function (result) {
+          ui.toast(t(result.seeded ? "settings.seedSheetsDone" : "settings.seedSheetsSkipped"));
+        })
+        .catch(function (error) {
+          console.error("[wos] seeding Sheets failed", error);
+          ui.toast(t("settings.seedSheetsFailed"), "error");
+        })
+        .then(function () {
+          target.disabled = false;
+        });
     });
 
     WOS.on(page, "click", "[data-reset-data]", function () {

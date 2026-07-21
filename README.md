@@ -86,6 +86,31 @@ the Vercel function attaches `SHEETS_SECRET` (from the project's environment
 variables, never sent to the browser) and forwards to `SHEETS_ENDPOINT`. Set
 both in the Vercel project settings before switching `config.js` to `"api"`.
 
+#### Switching it on
+
+1. In the Apps Script editor: **Project Settings → Script Properties**, add
+   `SECRET` with a long random string.
+2. **Deploy → New deployment → Web app**, with **Execute as: Me** and
+   **Who has access: Anyone**. That last one matters — with anything
+   stricter, Google answers the proxy with a sign-in page instead of JSON,
+   and the endpoint would be unusable. The `SECRET` is what actually guards
+   it, and it never leaves the server.
+3. Run `setupSheets()` once from the editor to create the tabs and headers.
+4. In the Vercel project: **Settings → Environment Variables**, add
+   `SHEETS_ENDPOINT` (the deployment's `/exec` URL) and `SHEETS_SECRET`
+   (matching step 1). Redeploy so the function picks them up.
+5. Open **Settings → Preferences → Copy sample data to Google Sheets**. This
+   is a one-time bulk write of `seed.js` into the empty spreadsheet, so the
+   workspace isn't blank after switching. It refuses to run if `members`
+   already has rows, so it can't duplicate an existing workspace. Skip it if
+   you'd rather start from an empty sheet — but note a workspace with no
+   members has no assignees to pick in task modals.
+6. Change `backend: "local"` to `backend: "api"` in `assets/js/config.js`,
+   then commit and push.
+
+Steps 1–5 all work while still on `"local"`, which is the point: fill and
+verify the spreadsheet first, and only flip the switch once it looks right.
+
 ### `vercel.json` / `cleanUrls`
 
 Every link in this app is an explicit `page.html` (with a `?query` where

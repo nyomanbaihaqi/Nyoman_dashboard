@@ -116,6 +116,8 @@ function dispatch(body, sheet, columns) {
       return getRow(sheet, columns, body.id);
     case 'create':
       return createRow(sheet, columns, body.data, body.collection);
+    case 'createMany':
+      return createRows(sheet, columns, body.rows, body.collection);
     case 'update':
       return updateRow(sheet, columns, body.id, body.data);
     case 'remove':
@@ -246,6 +248,29 @@ function createRow(sheet, columns, data, collection) {
 
   sheet.appendRow(encodeRow(record, columns));
   return record;
+}
+
+/**
+ * Append many rows in one call. Seeding a fresh spreadsheet means ~80 rows
+ * across 17 collections; one appendRow per row would be ~80 round trips, each
+ * taking the script lock. One setValues per collection is a couple of seconds
+ * total instead of minutes.
+ */
+function createRows(sheet, columns, rows, collection) {
+  if (!rows || !rows.length) return [];
+
+  var records = [];
+  var values = [];
+  for (var i = 0; i < rows.length; i++) {
+    var record = {};
+    for (var key in rows[i]) record[key] = rows[i][key];
+    record.id = rows[i].id || newId(collection);
+    records.push(record);
+    values.push(encodeRow(record, columns));
+  }
+
+  sheet.getRange(sheet.getLastRow() + 1, 1, values.length, columns.length).setValues(values);
+  return records;
 }
 
 function updateRow(sheet, columns, id, patch) {

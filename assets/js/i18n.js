@@ -436,6 +436,12 @@
     "settings.resetConfirm": "Discard all local changes and restore the sample data?",
     "settings.resetDone": "Sample data restored",
     "settings.saved": "Profile saved",
+    "settings.seedSheets": "Copy sample data to Google Sheets",
+    "settings.seedSheetsHint": "One-time setup: fills an empty spreadsheet so the workspace isn't blank after switching. Skipped if it already has data.",
+    "settings.seedSheetsRunning": "Copying to Google Sheets…",
+    "settings.seedSheetsDone": "Sample data copied to Google Sheets",
+    "settings.seedSheetsSkipped": "Google Sheets already has data — nothing copied",
+    "settings.seedSheetsFailed": "Couldn't reach Google Sheets. Check the setup in the README.",
 
     /* Time */
     "time.today": "Today",
@@ -861,6 +867,12 @@
     "settings.resetConfirm": "Buang semua perubahan lokal dan kembalikan data contoh?",
     "settings.resetDone": "Data contoh dikembalikan",
     "settings.saved": "Profil tersimpan",
+    "settings.seedSheets": "Salin data contoh ke Google Sheets",
+    "settings.seedSheetsHint": "Setup sekali saja: mengisi spreadsheet kosong agar workspace tidak blank setelah dialihkan. Dilewati kalau sudah ada isinya.",
+    "settings.seedSheetsRunning": "Menyalin ke Google Sheets…",
+    "settings.seedSheetsDone": "Data contoh tersalin ke Google Sheets",
+    "settings.seedSheetsSkipped": "Google Sheets sudah ada isinya — tidak ada yang disalin",
+    "settings.seedSheetsFailed": "Tidak bisa menghubungi Google Sheets. Cek setup di README.",
 
     "time.today": "Hari Ini",
     "time.yesterday": "Kemarin",

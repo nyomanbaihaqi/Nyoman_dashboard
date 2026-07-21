@@ -23,22 +23,51 @@ module.exports = async function handler(req, res) {
   if (!endpoint || !secret) {
     res.status(500).json({
       ok: false,
-      error: "Sheets backend isn't configured. Set SHEETS_ENDPOINT and SHEETS_SECRET in the Vercel project's environment variables.",
+      error:
+        "Sheets backend isn't configured. Set SHEETS_ENDPOINT and SHEETS_SECRET in the Vercel project's environment variables, then redeploy.",
     });
     return;
   }
 
   var body = Object.assign({}, req.body, { secret: secret });
 
+  var upstream;
   try {
-    var upstream = await fetch(endpoint, {
+    upstream = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
+      redirect: "follow", // Apps Script /exec always 302s to googleusercontent.com
     });
-    var payload = await upstream.json();
-    res.status(200).json(payload);
   } catch (err) {
-    res.status(502).json({ ok: false, error: "Could not reach the Sheets backend." });
+    res.status(502).json({
+      ok: false,
+      error: "Couldn't reach SHEETS_ENDPOINT. Check the URL is the deployment's /exec address.",
+      detail: String(err && err.message ? err.message : err),
+    });
+    return;
   }
+
+  // Read as text first. Apps Script answers with HTML — a Google sign-in page —
+  // when the Web App's "Who has access" isn't set to "Anyone", and parsing that
+  // as JSON would throw a SyntaxError that says nothing about the real cause.
+  var raw = await upstream.text();
+
+  var payload;
+  try {
+    payload = JSON.parse(raw);
+  } catch (err) {
+    var looksLikeLogin = /<html|accounts\.google\.com|sign in/i.test(raw);
+    res.status(502).json({
+      ok: false,
+      error: looksLikeLogin
+        ? 'Apps Script returned a sign-in page instead of JSON. In the Apps Script editor: Deploy → Manage deployments → edit → set "Who has access" to "Anyone", then redeploy and update SHEETS_ENDPOINT to the new /exec URL.'
+        : "Apps Script returned a non-JSON response.",
+      upstreamStatus: upstream.status,
+      preview: raw.slice(0, 200),
+    });
+    return;
+  }
+
+  res.status(200).json(payload);
 };
