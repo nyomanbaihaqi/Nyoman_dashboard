@@ -233,7 +233,11 @@
         })
         .catch(function (error) {
           console.error("[wos] seeding Sheets failed", error);
-          ui.toast(t("settings.seedSheetsFailed"), "error");
+          // Show what actually came back. "Couldn't reach Google Sheets" is
+          // wrong for the common case where the request arrived fine and Apps
+          // Script rejected it — e.g. an editor still running an older Code.gs.
+          var detail = error && error.message ? error.message : "";
+          ui.toast(detail ? t("settings.seedSheetsFailed") + " (" + detail + ")" : t("settings.seedSheetsFailed"), "error");
         })
         .then(function () {
           target.disabled = false;

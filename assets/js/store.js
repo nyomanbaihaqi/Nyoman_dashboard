@@ -16,6 +16,50 @@
   var cache = {}; // collection name → array, populated on first read
   var listeners = [];
 
+  /* ── Session cache (API backend only) ──────────────────────────
+     Every Apps Script call costs about 1.9s before it reads a single
+     row — the redirect hop and script startup — and this is a
+     multi-page app, so each nav is a fresh document that would pay it
+     again. Holding reads in sessionStorage makes navigation instant
+     within a session; the TTL keeps a teammate's edits from staying
+     invisible for long, and writes refresh their own collection
+     immediately. localStorage is deliberately not used: a stale copy
+     shouldn't outlive the tab.
+     ────────────────────────────────────────────────────────────── */
+
+  var SESSION_TTL_MS = 60000;
+
+  function sessionKey(collection) {
+    return WOS.config.storagePrefix + "cache." + collection;
+  }
+
+  function sessionRead(collection) {
+    try {
+      var raw = sessionStorage.getItem(sessionKey(collection));
+      if (!raw) return null;
+      var entry = JSON.parse(raw);
+      if (!entry || typeof entry.at !== "number") return null;
+      if (Date.now() - entry.at > SESSION_TTL_MS) return null;
+      return entry.rows;
+    } catch (err) {
+      return null; // unreadable or disabled — just miss the cache
+    }
+  }
+
+  function sessionWrite(collection, rows) {
+    try {
+      sessionStorage.setItem(sessionKey(collection), JSON.stringify({ at: Date.now(), rows: rows }));
+    } catch (err) {
+      // Quota or private mode. The cache is an optimisation, never the
+      // source of truth, so a failure here is not worth surfacing.
+    }
+  }
+
+  /** Push the in-memory copy back to the session cache after a write. */
+  function sessionSync(collection) {
+    if (useApi() && cache[collection]) sessionWrite(collection, cache[collection]);
+  }
+
   /* ── localStorage backend ──────────────────────────────────── */
 
   function storageKey(collection) {
@@ -85,21 +129,90 @@
       return Promise.resolve(cache[collection]);
     }
 
+    var cached = sessionRead(collection);
+    if (cached) {
+      cache[collection] = cached;
+      return Promise.resolve(cached);
+    }
+
     return rpc(collection, "list").then(function (rows) {
       cache[collection] = rows || [];
+      sessionWrite(collection, cache[collection]);
       return cache[collection];
     });
   }
 
-  /** Load several collections at once. Resolves to an object keyed by name. */
+  /**
+   * Load several collections at once. Resolves to an object keyed by name.
+   *
+   * On the API backend this is one request, not one per collection: Apps
+   * Script holds a script lock for the duration of every call, so issuing six
+   * at once just queues them — a page needing six collections spent about
+   * five seconds waiting. Anything already cached is left out of the request.
+   */
   function loadAll(names) {
-    return Promise.all(names.map(list)).then(function (results) {
-      var out = {};
-      names.forEach(function (name, index) {
-        out[name] = results[index];
+    if (!useApi()) {
+      return Promise.all(names.map(list)).then(function (results) {
+        return zip(names, results);
       });
-      return out;
+    }
+
+    var missing = [];
+    names.forEach(function (name) {
+      if (cache[name]) return;
+      var cached = sessionRead(name);
+      if (cached) {
+        cache[name] = cached;
+        return;
+      }
+      missing.push(name);
     });
+
+    if (!missing.length) {
+      return Promise.resolve(
+        zip(
+          names,
+          names.map(function (name) {
+            return cache[name];
+          }),
+        ),
+      );
+    }
+
+    return rpc(null, "listMany", { collections: missing })
+      .catch(function (error) {
+        // An Apps Script deployment still running an older Code.gs answers
+        // "unknown op: listMany". Fall back to one request per collection so
+        // the app degrades to slower rather than broken — a mismatch between
+        // what's pushed to Vercel and what's pasted into the editor is easy
+        // to hit, and shouldn't take the whole workspace down.
+        console.warn("[wos] listMany unavailable, falling back to per-collection reads", error);
+        return Promise.all(missing.map(function (name) {
+          return rpc(name, "list");
+        })).then(function (results) {
+          return zip(missing, results);
+        });
+      })
+      .then(function (fetched) {
+        missing.forEach(function (name) {
+          cache[name] = (fetched && fetched[name]) || [];
+          sessionWrite(name, cache[name]);
+        });
+        return zip(
+          names,
+          names.map(function (name) {
+            return cache[name];
+          }),
+        );
+      });
+  }
+
+  function zip(names, values) {
+    var out = {};
+    names.forEach(function (name, index) {
+      out[name] = values[index];
+    });
+    return out;
   }
 
   function get(collection, id) {
@@ -127,6 +240,7 @@
 
     return rpc(collection, "create", { data: row }).then(function (saved) {
       if (cache[collection]) cache[collection].push(saved);
+      sessionSync(collection);
       emit(collection);
       return saved;
     });
@@ -151,9 +265,11 @@
         return merged;
       }
 
+      sessionSync(collection);
       emit(collection);
       return rpc(collection, "update", { id: id, data: patch }).then(function (saved) {
         if (saved) rows[index] = saved;
+        sessionSync(collection);
         return saved || merged;
       });
     });
@@ -173,6 +289,7 @@
         return true;
       }
 
+      sessionSync(collection);
       emit(collection);
       return rpc(collection, "remove", { id: id }).then(function () {
         return true;
@@ -189,6 +306,18 @@
         /* nothing to clear */
       }
       delete cache[name];
+    });
+    dropSessionCache();
+  }
+
+  /** Forget every cached read, so the next one goes to the source. */
+  function dropSessionCache() {
+    WOS.COLLECTIONS.forEach(function (name) {
+      try {
+        sessionStorage.removeItem(sessionKey(name));
+      } catch (err) {
+        /* nothing to clear */
+      }
     });
   }
 
@@ -227,6 +356,9 @@
           });
         }, Promise.resolve())
         .then(function () {
+          // Reads taken before this point cached an empty spreadsheet; drop
+          // them so the seeded rows are what the next page load sees.
+          dropSessionCache();
           return { seeded: true, counts: counts };
         });
     });

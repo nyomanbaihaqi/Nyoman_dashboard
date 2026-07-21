@@ -111,6 +111,14 @@ both in the Vercel project settings before switching `config.js` to `"api"`.
 Steps 1–5 all work while still on `"local"`, which is the point: fill and
 verify the spreadsheet first, and only flip the switch once it looks right.
 
+> **`apps-script/Code.gs` does not deploy from git.** It's version-controlled
+> here for review and history, but the copy that actually runs lives in
+> Google's editor. After changing it, paste the new contents into the Apps
+> Script editor and **Deploy → Manage deployments → edit → Deploy** again, or
+> the endpoint keeps running the old code. The symptom is an app-level error
+> like `unknown op: …` coming back with HTTP 200 — the request arrived and
+> authenticated fine, the running script just didn't recognise it.
+
 ### `vercel.json` / `cleanUrls`
 
 Every link in this app is an explicit `page.html` (with a `?query` where

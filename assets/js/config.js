@@ -19,7 +19,7 @@ WOS.config = {
    *
    * Switch by setting this to "api" after deploying (see README).
    */
-  backend: "local",
+  backend: "api",
 
   /** Endpoint for backend "api". Same-origin, so no CORS setup needed. */
   apiEndpoint: "/api/sheets",

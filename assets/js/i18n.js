@@ -441,7 +441,7 @@
     "settings.seedSheetsRunning": "Copying to Google Sheets…",
     "settings.seedSheetsDone": "Sample data copied to Google Sheets",
     "settings.seedSheetsSkipped": "Google Sheets already has data — nothing copied",
-    "settings.seedSheetsFailed": "Couldn't reach Google Sheets. Check the setup in the README.",
+    "settings.seedSheetsFailed": "Copying to Google Sheets failed.",
 
     /* Time */
     "time.today": "Today",
@@ -872,7 +872,7 @@
     "settings.seedSheetsRunning": "Menyalin ke Google Sheets…",
     "settings.seedSheetsDone": "Data contoh tersalin ke Google Sheets",
     "settings.seedSheetsSkipped": "Google Sheets sudah ada isinya — tidak ada yang disalin",
-    "settings.seedSheetsFailed": "Tidak bisa menghubungi Google Sheets. Cek setup di README.",
+    "settings.seedSheetsFailed": "Gagal menyalin ke Google Sheets.",
 
     "time.today": "Hari Ini",
     "time.yesterday": "Kemarin",

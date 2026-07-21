@@ -89,6 +89,20 @@ function doPost(e) {
       return respond({ ok: false, error: 'unauthorized' });
     }
 
+    // Reads several collections in one request. The script lock serialises
+    // every call, so six "parallel" list requests from one page load actually
+    // queue behind each other — a page needing six collections waited about
+    // five seconds. Fetching them in a single call makes that one round trip.
+    if (body.op === 'listMany') {
+      var manyLock = LockService.getScriptLock();
+      manyLock.waitLock(20000);
+      try {
+        return respond({ ok: true, data: listMany(body.collections) });
+      } finally {
+        manyLock.releaseLock();
+      }
+    }
+
     var columns = SCHEMA[body.collection];
     if (!columns) return respond({ ok: false, error: 'unknown collection: ' + body.collection });
 
@@ -226,6 +240,24 @@ function listRows(sheet, columns, filter) {
     }
     return true;
   });
+}
+
+/**
+ * Read several collections at once, keyed by name. Unknown names are skipped
+ * rather than failing the batch — one stale collection name in a page's
+ * request shouldn't blank out the other five.
+ */
+function listMany(names) {
+  var out = {};
+  if (!names) return out;
+
+  for (var i = 0; i < names.length; i++) {
+    var name = names[i];
+    var columns = SCHEMA[name];
+    if (!columns) continue;
+    out[name] = listRows(getSheet(name, columns), columns, null);
+  }
+  return out;
 }
 
 function findRow(sheet, columns, id) {
