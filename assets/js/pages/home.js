@@ -441,7 +441,7 @@
 
   function render() {
     var user = WOS.shell.user();
-    var firstName = user ? user.name.split(" ")[0] : "";
+    var firstName = user ? String(user.name || "").split(" ")[0] : "";
 
     page.innerHTML =
       '<h1 class="page__title" style="font-size:22px">' +
@@ -508,7 +508,13 @@
 
       return Promise.all([
         WOS.db.loadAll(["members", "tasks", "projects", "notes", "approvals"]),
-        WOS.gcal.range(dayStart, dayEnd),
+        // Today's schedule is one card among many here, so an unreachable
+        // calendar shouldn't cost the user their tasks, projects and
+        // approvals as well.
+        WOS.gcal.range(dayStart, dayEnd).catch(function (error) {
+          console.warn("[wos] calendar unavailable for home", error);
+          return [];
+        }),
       ]);
     })
     .then(function (results) {

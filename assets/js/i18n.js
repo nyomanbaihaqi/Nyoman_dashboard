@@ -566,6 +566,8 @@
 
     /* Google Calendar */
     "calendar.googleSynced": "Live from Google Calendar",
+    "calendar.unavailable": "Couldn't reach Google Calendar — the schedule below may be incomplete.",
+    "calendar.unavailableShort": "Schedule unavailable",
     "calendar.calendars": "Calendars",
     "calendar.allDay": "All day",
     "calendar.recurring": "Repeats",
@@ -585,8 +587,10 @@
     /* Generic */
     "state.loading": "Loading…",
     "state.empty": "Nothing here yet.",
+    "common.untitled": "Untitled",
     "state.error": "Something went wrong.",
     "state.errorDetail": "Couldn't reach the data source. Check your connection and try again.",
+    "state.errorApp": "This page hit a problem while rendering. The detail below says what.",
     "state.saved": "Saved",
     "state.required": "This field is required.",
   };
@@ -1114,6 +1118,8 @@
     "calendar.noConflict": "Tidak ada bentrok.",
 
     "calendar.googleSynced": "Langsung dari Google Calendar",
+    "calendar.unavailable": "Tidak bisa menghubungi Google Calendar — jadwal di bawah mungkin tidak lengkap.",
+    "calendar.unavailableShort": "Jadwal tidak tersedia",
     "calendar.calendars": "Kalender",
     "calendar.allDay": "Seharian",
     "calendar.recurring": "Berulang",
@@ -1132,8 +1138,10 @@
 
     "state.loading": "Memuat…",
     "state.empty": "Belum ada apa-apa.",
+    "common.untitled": "Tanpa judul",
     "state.error": "Terjadi kesalahan.",
     "state.errorDetail": "Tidak bisa menghubungi sumber data. Cek koneksi lalu coba lagi.",
+    "state.errorApp": "Halaman ini gagal saat menampilkan data. Detail di bawah menjelaskan penyebabnya.",
     "state.saved": "Tersimpan",
     "state.required": "Kolom ini wajib diisi.",
   };

@@ -155,7 +155,7 @@
           return (
             '<div class="row"><span class="grow" style="display:flex;align-items:center;gap:10px">' +
             ui.avatar(m, 26) + '<span class="text-sm" style="color:var(--text-body)">' + esc(m.name) + "</span></span>" +
-            '<span class="text-label faint">' + esc(m.role.charAt(0).toUpperCase() + m.role.slice(1)) + "</span></div>"
+            '<span class="text-label faint">' + esc(WOS.titleCase(m.role)) + "</span></div>"
           );
         })
         .join("") +

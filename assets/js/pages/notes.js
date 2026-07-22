@@ -48,15 +48,17 @@
     var suggestions = ["notes.suggestion.followUp", "notes.suggestion.checkpoint", "notes.suggestion.summarize"];
 
     return (
-      '<h1 class="page__title">' + esc(t(greetingKey())) + ", " + esc(user ? user.name.split(" ")[0] : "") + "</h1>" +
+      '<h1 class="page__title">' + esc(t(greetingKey())) + ", " + esc(user ? String(user.name || "").split(" ")[0] : "") + "</h1>" +
       '<p class="page__subtitle">' + esc(t("notes.subtitle")) + "</p>" +
       '<div class="grid grid--lg-2" style="margin-top:22px;grid-template-columns:1.3fr 1fr">' +
       '<div class="card" style="background:linear-gradient(120deg,#f5f3ff,#fdf4ff)">' +
       '<p class="eyebrow" style="color:var(--antar-purple)">' + esc(t("notes.continueWriting")) + "</p>" +
       (latest
-        ? '<p style="font-size:17px;font-weight:800;color:var(--text-strong);margin-top:8px">' + esc(latest.title) + "</p>" +
+        ? '<p style="font-size:17px;font-weight:800;color:var(--text-strong);margin-top:8px">' + esc(WOS.nameOr(latest.title, t("common.untitled"))) + "</p>" +
           '<p class="text-sm" style="margin-top:6px;color:var(--text-body);line-height:1.6" class="clamp-2">' +
-          esc(latest.content.replace(/[#*>`|\-\[\]]/g, "").slice(0, 160)) + "…</p>" +
+          // Sheets hands back null for an empty cell, so a note saved without
+          // a body arrives as content: null rather than "".
+          esc(String(latest.content || "").replace(/[#*>`|\-\[\]]/g, "").slice(0, 160)) + "…</p>" +
           '<a class="btn btn--primary btn--sm" style="margin-top:14px" href="note.html?id=' + esc(latest.id) + '">' +
           esc(t("notes.continueWriting")) + "</a>"
         : '<p class="text-sm muted" style="margin-top:8px">' + esc(t("state.empty")) + "</p>") +
@@ -78,7 +80,7 @@
               return (
                 '<a class="row" href="meeting.html?id=' + esc(m.id) + '">' +
                 ui.iconTile("message-square", "#f0f9ff", "#0284c7", "sm") +
-                '<span><span class="row__title" style="display:block;font-size:12.5px">' + esc(m.title) + "</span>" +
+                '<span><span class="row__title" style="display:block;font-size:12.5px">' + esc(WOS.nameOr(m.title, t("common.untitled"))) + "</span>" +
                 '<span class="row__meta" style="display:block">' + esc(fmt.isToday(m.startAt) ? t("time.today") : fmt.dayMonth(m.startAt)) +
                 ", " + esc(fmt.time(m.startAt)) + "</span></span></a>"
               );
@@ -93,7 +95,7 @@
             .map(function (n) {
               return (
                 '<a class="row" href="note.html?id=' + esc(n.id) + '">' + icon("crown", 13, { color: "var(--amber-500)" }) +
-                '<span class="text-sm truncate" style="color:var(--text-body)">' + esc(n.title) + "</span></a>"
+                '<span class="text-sm truncate" style="color:var(--text-body)">' + esc(WOS.nameOr(n.title, t("common.untitled"))) + "</span></a>"
               );
             })
             .join("")
@@ -101,7 +103,7 @@
       "</div>" +
       '<div class="card"><h2 class="card__title">' + esc(t("notes.meetingToday")) + "</h2>" +
       (todayMeeting
-        ? '<p style="font-size:13.5px;font-weight:700;color:var(--text-strong);margin-top:10px">' + esc(todayMeeting.title) + "</p>" +
+        ? '<p style="font-size:13.5px;font-weight:700;color:var(--text-strong);margin-top:10px">' + esc(WOS.nameOr(todayMeeting.title, t("common.untitled"))) + "</p>" +
           '<p class="text-label muted" style="margin-top:3px">' + esc(fmt.time(todayMeeting.startAt)) + " · " +
           esc(fmt.duration(todayMeeting.durationMin)) + "</p>" +
           '<a class="btn btn--outline btn--sm" style="margin-top:12px" href="meeting.html?id=' + esc(todayMeeting.id) + '">' +
@@ -116,7 +118,7 @@
               return (
                 '<a class="row" href="note.html?id=' + esc(n.id) + '">' +
                 '<span class="icon-tile icon-tile--sm" style="background:var(--slate-50);font-size:14px">' + esc(n.icon) + "</span>" +
-                '<span class="grow"><span class="row__title" style="display:block;font-size:12.5px">' + esc(n.title) + "</span>" +
+                '<span class="grow"><span class="row__title" style="display:block;font-size:12.5px">' + esc(WOS.nameOr(n.title, t("common.untitled"))) + "</span>" +
                 '<span class="row__meta" style="display:block">' + esc(fmt.relative(n.updatedAt)) + "</span></span></a>"
               );
             })
@@ -178,7 +180,7 @@
         return (
           '<a class="table__row" href="meeting.html?id=' + esc(m.id) +
           '" style="grid-template-columns:2.2fr 1fr 0.8fr 1.2fr 1fr 0.9fr;text-decoration:none">' +
-          '<span><span class="row__title" style="display:block">' + esc(m.title) + "</span>" +
+          '<span><span class="row__title" style="display:block">' + esc(WOS.nameOr(m.title, t("common.untitled"))) + "</span>" +
           '<span class="cluster" style="gap:4px;margin-top:4px">' + ui.tags(m.tags) + "</span></span>" +
           '<span class="text-sm muted">' + esc(fmt.dayMonth(m.startAt)) + "</span>" +
           '<span class="text-sm muted">' + esc(fmt.duration(m.durationMin)) + "</span>" +
@@ -195,7 +197,7 @@
         var project = data.projectById.get(m.projectId);
         return (
           '<a class="card" href="meeting.html?id=' + esc(m.id) + '" style="display:block">' +
-          '<div class="spread"><span class="row__title">' + esc(m.title) + "</span>" +
+          '<div class="spread"><span class="row__title">' + esc(WOS.nameOr(m.title, t("common.untitled"))) + "</span>" +
           ui.badge(t("meetings.status." + m.status), ui.MEETING_TONE[m.status]) + "</div>" +
           '<p class="text-label muted" style="margin-top:6px">' + esc(fmt.dayMonth(m.startAt)) + " · " + esc(fmt.duration(m.durationMin)) +
           " · " + esc(project ? project.name : "—") + "</p></a>"
@@ -241,7 +243,7 @@
             '<a class="card card-lift" href="note.html?id=' + esc(n.id) + '" style="display:block">' +
             '<div class="spread"><span style="font-size:22px">' + esc(n.icon) + "</span>" +
             (n.pinned ? icon("crown", 14, { color: "var(--amber-500)" }) : "") + "</div>" +
-            '<p class="clamp-2" style="margin-top:10px;font-size:13.5px;font-weight:700;color:var(--text-strong)">' + esc(n.title) + "</p>" +
+            '<p class="clamp-2" style="margin-top:10px;font-size:13.5px;font-weight:700;color:var(--text-strong)">' + esc(WOS.nameOr(n.title, t("common.untitled"))) + "</p>" +
             '<div class="cluster" style="gap:4px;margin-top:8px">' + ui.tags(n.tags) + "</div>" +
             '<p class="text-label muted" style="margin-top:10px">' + esc(fmt.relative(n.updatedAt)) + " · " + esc(author ? author.name : "—") + "</p>" +
             "</a>"
@@ -274,7 +276,7 @@
                 '<a class="card card-lift" href="note.html?id=' + esc(n.id) + '" style="display:flex;gap:12px;margin-top:10px;padding-left:14px;position:relative;overflow:hidden">' +
                 '<span style="position:absolute;left:0;top:0;height:100%;width:4px;background:var(--antar-purple)"></span>' +
                 '<span><span class="text-label faint" style="display:block">' + esc(fmt.time(n.createdAt)) + "</span>" +
-                '<span style="display:block;font-size:14px;font-weight:600;color:var(--text-strong);margin-top:2px">' + esc(n.title) + "</span>" +
+                '<span style="display:block;font-size:14px;font-weight:600;color:var(--text-strong);margin-top:2px">' + esc(WOS.nameOr(n.title, t("common.untitled"))) + "</span>" +
                 '<span class="text-sm muted" style="display:block;margin-top:3px;line-height:1.5">' + esc(n.content) + "</span></span></a>"
               );
             })
@@ -350,7 +352,7 @@
         .map(function (i) {
           return (
             '<div class="card">' + ui.badge(t("ideas.status." + i.status), ui.IDEA_TONE[i.status]) +
-            '<p style="font-size:14.5px;font-weight:700;color:var(--text-strong);margin-top:10px">' + esc(i.title) + "</p>" +
+            '<p style="font-size:14.5px;font-weight:700;color:var(--text-strong);margin-top:10px">' + esc(WOS.nameOr(i.title, t("common.untitled"))) + "</p>" +
             '<p class="text-label muted" style="margin-top:6px;line-height:1.6">' + esc(i.text) + "</p></div>"
           );
         })

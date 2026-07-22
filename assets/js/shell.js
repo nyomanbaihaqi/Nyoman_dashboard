@@ -350,7 +350,7 @@
     } else {
       results = entries
         .map(function (entry) {
-          var pos = entry.title.toLowerCase().indexOf(q);
+          var pos = String(entry.title || "").toLowerCase().indexOf(q);
           return { entry: entry, score: pos };
         })
         .filter(function (item) {
@@ -499,18 +499,37 @@
   }
 
   /**
-   * Standard failure state. Screens call this when the data layer rejects, so
-   * a Sheets outage shows an explanation and a retry rather than a blank page.
+   * Standard failure state.
+   *
+   * This sits on the boot chain of every page, so it catches whatever went
+   * wrong — a Sheets outage, but equally a bug thrown while rendering. It used
+   * to blame the connection for all of them, which sent debugging in the wrong
+   * direction for anything that wasn't actually a network problem. Now the
+   * message matches the failure, and the underlying message is always shown so
+   * a screenshot is enough to diagnose from.
    */
   function renderError(container, error) {
     console.error("[wos]", error);
+
+    var message = (error && error.message) || String(error || "");
+    // A rejected fetch surfaces as "HTTP 502" or "Failed to fetch"; a render
+    // bug surfaces as a TypeError. Only the former is worth retrying.
+    var isNetwork = /HTTP \d|Failed to fetch|NetworkError|unauthorized|reach/i.test(message);
+
     container.innerHTML =
       '<div class="empty"><span class="empty__icon" style="background:var(--rose-50);color:var(--rose-600)">' +
       icon("warning", 34) + "</span>" +
       '<p class="empty__title">' + esc(t("state.error")) + "</p>" +
-      '<p class="empty__text">' + esc(t("state.errorDetail")) + "</p>" +
-      '<div style="margin-top:20px"><button type="button" class="btn btn--outline" onclick="window.location.reload()">' +
-      esc(t("action.retry")) + "</button></div></div>";
+      '<p class="empty__text">' + esc(t(isNetwork ? "state.errorDetail" : "state.errorApp")) + "</p>" +
+      (message
+        ? '<p class="text-label faint mono" style="margin-top:10px;max-width:420px;word-break:break-word">' +
+          esc(message) + "</p>"
+        : "") +
+      (isNetwork
+        ? '<div style="margin-top:20px"><button type="button" class="btn btn--outline" onclick="window.location.reload()">' +
+          esc(t("action.retry")) + "</button></div>"
+        : "") +
+      "</div>";
   }
 
   WOS.shell = {

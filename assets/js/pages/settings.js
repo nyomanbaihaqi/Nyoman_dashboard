@@ -80,7 +80,7 @@
             '<div class="row"><span class="grow" style="display:flex;align-items:center;gap:10px">' +
             ui.avatar(m, 30) + '<span><span class="text-sm fw-semibold strong" style="display:block">' + esc(m.name) + "</span>" +
             '<span class="text-label muted">' + esc(m.email) + "</span></span></span>" +
-            '<span class="text-label muted">' + esc(m.role.charAt(0).toUpperCase() + m.role.slice(1)) + "</span></div>"
+            '<span class="text-label muted">' + esc(WOS.titleCase(m.role)) + "</span></div>"
           );
         })
         .join("") +

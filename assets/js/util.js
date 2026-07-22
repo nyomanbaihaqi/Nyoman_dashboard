@@ -31,6 +31,32 @@
     return esc(value);
   }
 
+  /**
+   * Capitalise a stored keyword for display ("owner" → "Owner").
+   *
+   * Takes anything, because an empty spreadsheet cell arrives as null rather
+   * than "" — calling .charAt on that is a crash, and it's the kind that only
+   * appears once the Sheets backend is live.
+   */
+  function titleCase(value) {
+    var text = String(value == null ? "" : value);
+    if (!text) return "—";
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  }
+
+  /**
+   * A record's display name, with a stand-in when there isn't one.
+   *
+   * A note saved without a title comes back as null (Sheets) or "" (local),
+   * and interpolating that renders a row with nothing in it — it reads as a
+   * broken list rather than an untitled item. Callers pass the wording so it
+   * stays translatable.
+   */
+  function nameOr(value, fallback) {
+    var text = String(value == null ? "" : value).trim();
+    return text || fallback || "—";
+  }
+
   /** querySelector, scoped to `root` (default: document). */
   function $(selector, root) {
     return (root || document).querySelector(selector);
@@ -162,6 +188,8 @@
 
   WOS.esc = esc;
   WOS.escAttr = escAttr;
+  WOS.titleCase = titleCase;
+  WOS.nameOr = nameOr;
   WOS.$ = $;
   WOS.$$ = $$;
   WOS.el = el;

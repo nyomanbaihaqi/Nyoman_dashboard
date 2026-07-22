@@ -23,6 +23,7 @@
 
   var page;
   var data;
+  var calendarFailed = false;
   var state = { tab: "daily" };
 
   /* ── Data slices ───────────────────────────────────────────── */
@@ -83,7 +84,12 @@
     lines.push("");
 
     lines.push("*" + t("brief.agenda") + "*");
-    if (!events.length) {
+    if (calendarFailed) {
+      // Never let a brief claim an empty day when the calendar simply wasn't
+      // reachable. "No meetings" and "couldn't check" are opposite instructions
+      // to whoever reads this.
+      lines.push("- ⚠️ " + t("calendar.unavailable"));
+    } else if (!events.length) {
       lines.push("- " + t("brief.noMeetings"));
     } else {
       events.forEach(function (e) {
@@ -196,12 +202,22 @@
       '<p class="text-label muted" style="margin-top:2px">' + esc(t("brief.dailySubtitle")) + "</p></div>" +
       '<button type="button" class="btn btn--primary btn--sm" data-copy-daily>' +
       icon("message-square", 14, { color: "#fff" }) + esc(t("brief.copy")) + "</button></div>" +
+      (calendarFailed ? calendarWarning() : "") +
       '<div class="grid grid--sm-3" style="margin-top:16px">' +
-      statTile(events.length, t("home.stat.meetingsToday"), "clock") +
+      statTile(calendarFailed ? "—" : events.length, t("home.stat.meetingsToday"), "clock") +
       statTile(priorities.length, t("brief.priorities"), "file-pen") +
       statTile(decisions.length, t("brief.needsApproval"), "shield-user") +
       "</div>" +
       '<div style="margin-top:16px">' + preview(text) + "</div>"
+    );
+  }
+
+  function calendarWarning() {
+    return (
+      '<div style="margin-top:14px;padding:12px 14px;background:var(--amber-50);border-radius:10px;' +
+      'display:flex;gap:10px;align-items:flex-start">' +
+      icon("warning", 15, { color: "var(--amber-600)" }) +
+      '<span class="text-sm" style="color:var(--amber-600);line-height:1.5">' + esc(t("calendar.unavailable")) + "</span></div>"
     );
   }
 
@@ -216,6 +232,14 @@
 
   function preMeetingView() {
     var events = upcomingEvents();
+
+    if (calendarFailed) {
+      return (
+        '<div><h2 class="card__title" style="font-size:17px">' + esc(t("brief.preMeeting")) + "</h2>" +
+        '<p class="text-label muted" style="margin-top:2px">' + esc(t("brief.preMeetingSubtitle")) + "</p></div>" +
+        calendarWarning()
+      );
+    }
 
     if (!events.length) {
       return (
@@ -308,7 +332,15 @@
 
       return Promise.all([
         WOS.db.loadAll(["tasks", "approvals", "members", "meetings"]),
-        WOS.gcal.range(dayStart, dayEnd),
+        // The agenda is one of three sections. If the calendar is unreachable,
+        // the priorities and pending decisions are still worth having, so this
+        // degrades to an empty schedule with a warning rather than taking the
+        // whole page down.
+        WOS.gcal.range(dayStart, dayEnd).catch(function (error) {
+          console.warn("[wos] calendar unavailable for the brief", error);
+          calendarFailed = true;
+          return [];
+        }),
       ]);
     })
     .then(function (results) {
