@@ -425,13 +425,7 @@
 
 
     /* Approvals */
-    "approvals.title": "Approvals",
-    "approvals.pending": "Pending",
-    "approvals.approved": "Approved",
-    "approvals.declined": "Declined",
     "approvals.requestedBy": "Requested by {name}",
-    "approvals.empty": "No approvals waiting on you.",
-    "approvals.done": "{title} {state}",
 
     /* Milestones & issues */
     "milestones.title": "Milestones",
@@ -570,17 +564,9 @@
     "brief.generatedAt": "Generated {time}",
 
     /* Decisions (CEO approval) */
-    "decisions.title": "Decisions",
-    "decisions.subtitle": "What needs the CEO to decide, and what it depends on.",
     "decisions.context": "Context",
     "decisions.options": "Options",
-    "decisions.note": "Decision note",
-    "decisions.notePlaceholder": "Why this way? (optional)",
-    "decisions.kind.spend": "Spend",
     "decisions.kind.decision": "Decision",
-    "decisions.pickOption": "Pick an option",
-    "decisions.new": "New decision request",
-    "decisions.noAmount": "No amount",
 
     /* Weekly review */
     "weekly.title": "Weekly Review",
@@ -1071,14 +1057,7 @@
     "automations.result.failed": "Gagal",
     "automations.enabled": "{name} diaktifkan",
     "automations.disabled": "{name} dijeda",
-
-    "approvals.title": "Persetujuan",
-    "approvals.pending": "Menunggu",
-    "approvals.approved": "Disetujui",
-    "approvals.declined": "Ditolak",
     "approvals.requestedBy": "Diminta oleh {name}",
-    "approvals.empty": "Tidak ada persetujuan yang menunggu.",
-    "approvals.done": "{title} {state}",
 
     "milestones.title": "Milestone",
     "milestones.empty": "Belum ada milestone.",
@@ -1206,18 +1185,9 @@
     "brief.nothingPending": "Tidak ada yang menunggu.",
     "brief.attendees": "Bersama",
     "brief.generatedAt": "Dibuat {time}",
-
-    "decisions.title": "Keputusan",
-    "decisions.subtitle": "Yang butuh diputuskan CEO, beserta dasar pertimbangannya.",
     "decisions.context": "Konteks",
     "decisions.options": "Opsi",
-    "decisions.note": "Catatan keputusan",
-    "decisions.notePlaceholder": "Kenapa arah ini? (opsional)",
-    "decisions.kind.spend": "Pengeluaran",
     "decisions.kind.decision": "Keputusan",
-    "decisions.pickOption": "Pilih opsi",
-    "decisions.new": "Ajukan keputusan",
-    "decisions.noAmount": "Tanpa nominal",
 
     "weekly.title": "Review Mingguan",
     "weekly.subtitle": "Progres per divisi, keputusan yang dibutuhkan, dan yang berhenti bergerak.",

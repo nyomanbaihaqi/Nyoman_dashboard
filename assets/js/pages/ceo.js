@@ -112,7 +112,9 @@
 
   function approvalRow(approval, isCarried) {
     var requester = data.memberById.get(approval.requesterId);
+    var division = data.divisionById ? data.divisionById.get(approval.divisionId) : null;
     var decided = approval.state !== "pending";
+    var options = approval.options || [];
 
     return (
       '<div class="card" style="margin-top:10px' +
@@ -130,8 +132,34 @@
         : "") +
       '<p class="text-label faint" style="margin-top:7px">' +
       esc(requester ? requester.name : t("ceo.noRequester")) +
+      (division ? " · " + esc(division.name) : "") +
       (approval.amount ? " · " + esc(fmt.currency(approval.amount, approval.currency)) : "") +
       "</p>" +
+      // The background someone wrote down so the CEO doesn't have to ask for
+      // it. Without this the row is a title and a yes/no button, which is how
+      // decisions get made on less than the requester actually provided.
+      (approval.context
+        ? '<div style="margin-top:10px;padding:10px 12px;background:var(--slate-50);border-radius:9px">' +
+          '<p class="eyebrow">' + esc(t("decisions.context")) + "</p>" +
+          '<p class="text-sm" style="margin-top:3px;color:var(--text-body);line-height:1.55">' +
+          esc(approval.context) + "</p></div>"
+        : "") +
+      // Picking an option IS the decision, so the chosen wording is stored as
+      // the note — "what did we settle on", not just "yes".
+      (options.length
+        ? '<div style="margin-top:10px"><p class="eyebrow">' + esc(t("decisions.options")) + "</p>" +
+          '<div class="stack stack--sm" style="margin-top:6px">' +
+          options
+            .map(function (opt, i) {
+              return decided
+                ? '<div class="text-sm" style="color:var(--text-body);padding:4px 0">• ' + esc(opt) + "</div>"
+                : '<button type="button" class="btn-dashed" style="justify-content:flex-start;text-align:left" ' +
+                  'data-pick-option="' + esc(approval.id) + '" data-option-index="' + i + '">' +
+                  icon("check", 13) + esc(opt) + "</button>";
+            })
+            .join("") +
+          "</div></div>"
+        : "") +
       (decided && approval.decisionNote
         ? '<p class="text-label" style="margin-top:7px;color:var(--text-body)">' +
           esc(t("ceo.note")) + ": " + esc(approval.decisionNote) + "</p>"
@@ -631,6 +659,31 @@
       decide(target.dataset.id, target.dataset.ceoDecide);
     });
 
+    // Choosing between named options settles it in one click, with the option
+    // itself as the note — no modal, because the wording is already the answer.
+    WOS.on(page, "click", "[data-pick-option]", function (event, target) {
+      var id = target.dataset.pickOption;
+      var approval = (data.approvals || []).filter(function (row) {
+        return row.id === id;
+      })[0];
+      if (!approval) return;
+
+      var chosen = (approval.options || [])[Number(target.dataset.optionIndex)];
+      if (!chosen) return;
+
+      WOS.db
+        .update("approvals", id, {
+          state: "approved",
+          decidedAt: new Date().toISOString(),
+          decisionNote: chosen,
+        })
+        .then(refresh)
+        .catch(function (error) {
+          console.error("[wos] recording the chosen option failed", error);
+          ui.toast(t("ceo.decideFailed"), "error");
+        });
+    });
+
     WOS.on(page, "click", "[data-ceo-reopen]", function (event, target) {
       WOS.db
         .update("approvals", target.dataset.ceoReopen, {
@@ -697,11 +750,12 @@
   }
 
   function refresh() {
-    return WOS.db.loadAll(["approvals", "changes", "members"]).then(function (loaded) {
+    return WOS.db.loadAll(["approvals", "changes", "members", "divisions"]).then(function (loaded) {
       data.approvals = loaded.approvals;
       data.changes = loaded.changes;
       data.members = loaded.members;
       data.memberById = WOS.indexById(loaded.members);
+      data.divisionById = WOS.indexById(loaded.divisions);
       render();
       return WOS.shell.refreshCounts();
     });
@@ -714,11 +768,12 @@
     .then(function (main) {
       page = main;
       page.innerHTML = WOS.ui.skeletonRows(3, 120);
-      return WOS.db.loadAll(["approvals", "changes", "members"]);
+      return WOS.db.loadAll(["approvals", "changes", "members", "divisions"]);
     })
     .then(function (loaded) {
       data = loaded;
       data.memberById = WOS.indexById(loaded.members);
+      data.divisionById = WOS.indexById(loaded.divisions);
       render();
       bind();
     })

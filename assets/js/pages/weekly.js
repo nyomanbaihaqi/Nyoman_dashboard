@@ -233,7 +233,7 @@
           pending
             .map(function (a) {
               return (
-                '<a class="row" href="approvals.html" style="padding:13px 18px">' +
+                '<a class="row" href="ceo.html" style="padding:13px 18px">' +
                 ui.iconTile("shield-user", "var(--antar-purple-light)", "var(--antar-purple)", "sm") +
                 '<span class="grow"><span class="row__title" style="display:block">' + esc(a.title) + "</span>" +
                 '<span class="row__meta" style="display:block">' + esc(t("approvals.requestedBy", { name: memberName(a.requesterId) })) +

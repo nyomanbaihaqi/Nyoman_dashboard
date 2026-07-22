@@ -121,7 +121,7 @@
       statTile({
         icon: "shield-user", bg: "#fff1f2", color: "#e11d48",
         label: t("home.stat.approvals"), value: pendingApprovals.length,
-        sub: t("home.stat.pending"), subColor: "#e11d48", href: "approvals.html",
+        sub: t("home.stat.pending"), subColor: "#e11d48", href: "ceo.html",
       }) +
       "</div>"
     );

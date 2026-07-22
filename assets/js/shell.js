@@ -35,15 +35,15 @@
       items: [
         // First in the group: the handbook's first duty is keeping the CEO's
         // day unblocked, and this is the screen that does it.
-        { href: "ceo.html", key: "ceo.title", icon: "crown", id: "ceo" },
+        { href: "ceo.html", key: "ceo.title", icon: "crown", id: "ceo", badge: "approvals" },
         { href: "calendar.html", key: "nav.calendar", icon: "clock", id: "calendar" },
         { href: "tasks.html", key: "nav.myTasks", icon: "file-pen", id: "tasks", badge: "tasks" },
         { href: "notes.html", key: "nav.notes", icon: "layers", id: "notes" },
         { href: "templates.html", key: "templates.title", icon: "lightbulb", id: "templates" },
-        { href: "approvals.html", key: "decisions.title", icon: "shield-user", id: "approvals", badge: "approvals" },
-        // Reminders is gone: nothing in the app ever created a notification, so
-        // the page could only ever show its seed rows, and what it did show
-        // (approvals waiting) is what CEO Assistant and Decisions already do.
+        // Reminders and Decisions both folded into CEO Assistant: nothing ever
+        // created a notification, and Decisions showed the same approvals from
+        // the requester's end. The pending count moved onto CEO Assistant with
+        // them, so the badge still sits next to where the work is done.
       ],
     },
     {
