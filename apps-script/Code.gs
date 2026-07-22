@@ -60,6 +60,19 @@ var SCHEMA = {
   approvals: [
     'id', 'title', 'kind', 'description', 'context', 'options', 'amount', 'currency',
     'requesterId', 'approverId', 'divisionId', 'state', 'requestedAt', 'decidedAt', 'decisionNote',
+    // Which day this is meant to be put in front of the CEO. Separate from
+    // requestedAt, because "raised on Tuesday" and "asked for last Thursday"
+    // are different facts and the CEO Assistant list is built on the first.
+    'raiseOn',
+  ],
+
+  /**
+   * One daily improvement Antarestar is trying. A tasklist, the day it runs,
+   * and — the part that makes the log worth keeping — what actually came of it.
+   */
+  changes: [
+    'id', 'title', 'description', 'date', 'ownerId', 'divisionId', 'status',
+    'tasks', 'result', 'impact', 'reportedAt', 'createdAt', 'updatedAt',
   ],
   notifications: ['id', 'actorId', 'actorName', 'text', 'kind', 'read', 'createdAt', 'href'],
   folders: ['id', 'name', 'icon', 'iconBg', 'iconColor'],
@@ -75,6 +88,7 @@ var JSON_FIELDS = {
   actionItems: true, transcript: true, keywords: true, attachments: true,
   fact: true, assumption: true, proposal: true, decisionsNeeded: true,
   preReads: true, sop: true, options: true,
+  tasks: true,
 };
 
 /**

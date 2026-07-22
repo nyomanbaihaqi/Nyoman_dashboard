@@ -60,7 +60,13 @@ WOS.config = {
   currentUserId: "m_alex",
 };
 
-/** Collections, one per sheet tab. Order matters only for setup. */
+/**
+ * Collections, one per sheet tab. Order matters only for setup.
+ *
+ * `ideas` was dropped when the Ideas screen was removed — every loadAll
+ * batches these, so a collection nothing reads is a request nobody needs. The
+ * sheet tab and its rows are left alone; this only stops the app fetching it.
+ */
 WOS.COLLECTIONS = [
   "members",
   "divisions",
@@ -70,9 +76,9 @@ WOS.COLLECTIONS = [
   "events",
   "notes",
   "meetings",
-  "ideas",
   "threads",
   "approvals",
+  "changes",
   "notifications",
   "folders",
   "files",

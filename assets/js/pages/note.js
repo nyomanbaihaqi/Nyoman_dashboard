@@ -115,8 +115,10 @@
       '" style="margin-top:12px;font-size:22px;font-weight:800;border:none;padding:4px 0;box-shadow:none">' +
       '<input class="input" data-field="tags" placeholder="' + esc(t("tasks.col.tags")) + '" value="' + esc((n.tags || []).join(", ")) +
       '" style="margin-top:10px">' +
-      '<textarea class="textarea" data-field="content" placeholder="Markdown…" style="margin-top:12px;min-height:360px;font-family:var(--font-mono);font-size:13px">' +
-      esc(n.content) + "</textarea>" +
+      '<div style="margin-top:12px">' +
+      '<textarea class="textarea" data-field="content" style="font-family:var(--font-mono);font-size:13px">' +
+      esc(n.content) + "</textarea></div>" +
+      '<p class="text-label muted" style="margin-top:8px">' + esc(t("editor.hint")) + "</p>" +
       '<div class="modal__actions" style="justify-content:flex-start">' +
       '<button type="button" class="btn btn--primary" data-save-note>' + esc(t("action.save")) + "</button>" +
       (isNew ? '<a class="btn btn--ghost" href="notes.html">' + esc(t("action.cancel")) + "</a>" : '<button type="button" class="btn btn--ghost" data-cancel-edit>' + esc(t("action.cancel")) + "</button>") +
@@ -125,6 +127,12 @@
   }
 
   function bindDynamic() {
+    // The editor decorates a fresh textarea, so it is re-attached each time
+    // render() swaps the markup rather than bound once like the delegated
+    // handlers below.
+    var content = WOS.$("[data-field='content']", page);
+    if (content && WOS.editor) WOS.editor.attach(content);
+
     WOS.$$("[data-pick-icon]", page).forEach(function (btn) {
       btn.addEventListener("click", function () {
         WOS.$("[data-field='icon']", page).value = btn.dataset.pickIcon;
@@ -167,6 +175,26 @@
           window.location.href = "notes.html";
         });
       }
+    });
+
+    // Ticking a box in the reader edits the markdown behind it. The optimistic
+    // repaint keeps the click feeling instant; a failed save reloads the note
+    // so the screen never shows a tick the spreadsheet doesn't have.
+    WOS.on(page, "click", "[data-check-index]", function (event, target) {
+      if (state.editing || !note) return;
+      var next = ui.toggleCheckbox(note.content, Number(target.dataset.checkIndex));
+      if (next === note.content) return;
+
+      note.content = next;
+      render();
+
+      WOS.db
+        .update("notes", note.id, { content: next, updatedAt: new Date().toISOString() })
+        .catch(function (error) {
+          console.error("[wos] saving the checklist failed", error);
+          ui.toast(t("notes.saveFailed"), "error");
+          return refresh();
+        });
     });
 
     WOS.on(page, "click", "[data-cancel-edit]", function () {

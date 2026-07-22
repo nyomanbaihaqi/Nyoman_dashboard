@@ -23,13 +23,13 @@ page-specific module:
 
 ```
 index.html              Home
+brief.html               ceo.html             weekly.html
 tasks.html               kanban.html          projects.html
 project.html?id=         calendar.html        inbox.html
 notifications.html       approvals.html       notes.html
 note.html?id=            meeting.html?id=     meeting-intelligence.html
-knowledge.html           automations.html     timeline.html
-milestones.html          issues.html          prompts.html
-settings.html            help.html
+templates.html           timeline.html        milestones.html
+issues.html              settings.html        help.html
 
 assets/css/tokens.css    design tokens, copied verbatim from the handoff
 assets/css/app.css       every component used across all pages
@@ -168,7 +168,7 @@ Vercel serves the exact path requested, no redirect involved.
 Tokens in `assets/css/tokens.css` are copied verbatim from the handoff's
 `design-tokens/` — they're the contract with design, so don't hand-tune them.
 `assets/css/app.css` holds every component (cards, badges, kanban, gantt,
-calendar, split view, forms, modals, command palette, …) used across all 21
+calendar, split view, forms, modals, command palette, …) used across all 22
 pages.
 
 Icon names ("file-pen", "chart-line") are stored in the data model and mapped
@@ -203,18 +203,75 @@ English, then to the raw key, so a missing string never renders blank.
 
 ## AI features
 
-Meeting Intelligence's upload → processing flow, the AI Chat panels, and the
-various "Ask AI" buttons all walk through the intended UX with sample output
-— there's no model wired up behind them yet. Each one shows
+### AI Recap — recording → five-point MoM
+
+Notes & Meetings → **AI Recap** takes a meeting recording (or a pasted
+transcript) and returns the handbook's five points — Fact, Assumption,
+Proposal, Decision, Action — which you review and then save as a `meetings`
+record. It deliberately writes into the existing Meeting page rather than
+somewhere new, so the minutes land where the Copy-to-WhatsApp flow already
+lives.
+
+**Setup.** Get a key from <https://aistudio.google.com/apikey>, then in the
+Vercel project: Settings → Environment Variables → add `GEMINI_API_KEY` →
+**Redeploy**. Environment variables do not apply to a deployment that is
+already running, so skipping the redeploy leaves the feature reporting that
+it isn't configured. Optionally set `GEMINI_MODEL` to override the default
+(`gemini-2.0-flash`).
+
+**Why the upload is a three-step dance.** A Vercel function body caps out
+around 4.5 MB and a two-hour recording is 30-60 MB, so the audio never passes
+through the site. `api/analyze.js` asks Google for a resumable upload URL and
+hands only that URL to the browser, which PUTs the bytes straight to Google.
+The upload URL carries its own short-lived token, so `GEMINI_API_KEY` stays
+server-side — the same reason `/api/sheets` exists.
+
+The model is asked for JSON against a fixed schema and told, in as many words,
+never to promote a proposal into a decision: these minutes get pasted into
+WhatsApp and acted on, so an invented decision is the expensive failure.
+Action-item owners are matched against the `members` list by name; an
+unmatched name is stored as a hint and left **unassigned** rather than guessed,
+because a wrongly assigned task is worse than an unassigned one.
+
+### Still demo-only
+
+The AI Chat panels and the various "Ask AI" buttons walk through the intended
+UX with sample output — there's no model behind them. Each shows
 `mi.aiPending` ("AI processing isn't connected yet…") so it reads as a demo,
 not a broken feature. Converting a meeting action item into a real task,
 though, is fully functional — it writes to the `tasks` collection like any
 other create.
 
+## CEO Assistant
+
+`ceo.html` holds the two things the assistant carries into the CEO's day.
+
+**CEO Approvals** is a day-at-a-time list of what needs a yes or no, decided in
+the room with one tap and a note. It reads and writes the same `approvals`
+collection as the Decisions page rather than keeping a private copy — Decisions
+is the same data seen from the requester's end, and two stores would drift the
+moment one screen saw more use.
+
+Two behaviours carry the design. Anything still undecided from an earlier day
+is pulled forward under "still waiting", because a request that isn't asked
+about twice is a decision that never happens. And anything *decided* on a given
+day stays on that day whatever day it was raised — otherwise settling a
+carried-over item makes it vanish, and it drops out of the day's copied report.
+
+**Today's Changes** is one improvement Antarestar is trying per day: a
+tasklist, and then what actually came of it. Finishing every step prompts for
+the result rather than letting the entry sit closed-but-unexplained, and the
+outcome can be recorded as "didn't work" — a log where everything succeeded is
+a log nobody was honest in.
+
+New data: `changes`, plus a `raiseOn` column on `approvals` (which day to put
+it in front of the CEO — a different fact from when it was requested). Run
+`migrateSheets()` in the Apps Script editor once to add the tab and the column.
+
 ## Status
 
 Built and verified end-to-end, including create/update/delete flows and
-console-clean navigation across every page: all 21 pages listed above, the
+console-clean navigation across every page: all 22 pages listed above, the
 full data layer (both adapters), the app shell (sidebar, mobile drawer, bottom
 nav, top bar, ⌘K command palette), and the Apps Script backend.
 

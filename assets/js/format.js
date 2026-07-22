@@ -18,8 +18,22 @@
     return value instanceof Date ? value : new Date(value);
   }
 
+  /**
+   * True when a value can't be rendered as a real date.
+   *
+   * Worth its own guard because `new Date(null)` is the epoch, not an error —
+   * so a task with no deadline formatted as "1 Jan", which reads as a real
+   * deadline that nobody set. An empty cell from Sheets arrives as null, so
+   * this is the common case, not the edge one.
+   */
+  function undated(value) {
+    if (value === null || value === undefined || value === "") return true;
+    return isNaN(toDate(value).getTime());
+  }
+
   /** "17 May" */
   function dayMonth(value) {
+    if (undated(value)) return "—";
     return new Intl.DateTimeFormat(localeTag(), { day: "numeric", month: "short" }).format(
       toDate(value),
     );
@@ -27,6 +41,7 @@
 
   /** "17 May 2024" */
   function fullDate(value) {
+    if (undated(value)) return "—";
     return new Intl.DateTimeFormat(localeTag(), {
       day: "numeric",
       month: "long",
@@ -36,6 +51,7 @@
 
   /** "May 2024" */
   function monthYear(value) {
+    if (undated(value)) return "—";
     return new Intl.DateTimeFormat(localeTag(), { month: "long", year: "numeric" }).format(
       toDate(value),
     );
@@ -43,6 +59,7 @@
 
   /** "15:00" — 24-hour, as in the design. */
   function time(value) {
+    if (undated(value)) return "—";
     return new Intl.DateTimeFormat(localeTag(), {
       hour: "2-digit",
       minute: "2-digit",

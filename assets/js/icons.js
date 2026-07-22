@@ -65,6 +65,28 @@
     filter: '<path d="M3 5h18l-7 8v6l-4 2v-8Z"/>',
     "arrow-left": '<path d="M19 12H5"/><path d="m12 19-7-7 7-7"/>',
     refresh: '<path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/>',
+
+    /* Editor toolbar. Drawn with a 2px stroke like the rest, so the letter
+       forms are built from paths rather than <text> — a text node would pick
+       up the page font and stop matching the other icons. */
+    bold: '<path d="M7 5h6.5a3.5 3.5 0 0 1 0 7H7Z"/><path d="M7 12h7.5a3.5 3.5 0 0 1 0 7H7Z"/>',
+    italic: '<path d="M17 4h-6"/><path d="M13 20H7"/><path d="m14 4-4 16"/>',
+    strikethrough:
+      '<path d="M4 12h16"/><path d="M17 7a4 4 0 0 0-4-3h-1a3.5 3.5 0 0 0-1.5 6.6"/><path d="M8 17a4 4 0 0 0 4 3h1a3.5 3.5 0 0 0 2.2-6.2"/>',
+    heading: '<path d="M6 4v16"/><path d="M18 4v16"/><path d="M6 12h12"/>',
+    list: '<path d="M9 6h11"/><path d="M9 12h11"/><path d="M9 18h11"/><circle cx="4.5" cy="6" r="1.2"/><circle cx="4.5" cy="12" r="1.2"/><circle cx="4.5" cy="18" r="1.2"/>',
+    "list-ordered":
+      '<path d="M10 6h10"/><path d="M10 12h10"/><path d="M10 18h10"/><path d="M4 4.5 5.5 4v4"/><path d="M4 10.5h2.5L4 14h2.5"/><path d="M4 16h2.5v1.5H5v1h1.5V20H4"/>',
+    "list-checks":
+      '<path d="M11 6h9"/><path d="M11 12h9"/><path d="M11 18h9"/><path d="m3 6 1.5 1.5L7.5 4.5"/><path d="m3 17 1.5 1.5L7.5 15.5"/>',
+    quote:
+      '<path d="M9 7H5a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h2v1a2 2 0 0 1-2 2H4"/><path d="M20 7h-4a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h2v1a2 2 0 0 1-2 2h-1"/>',
+    code: '<path d="m8 6-6 6 6 6"/><path d="m16 6 6 6-6 6"/>',
+    link: '<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>',
+    table:
+      '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M3 15h18"/><path d="M9 10v10"/>',
+    eye: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
+    undo: '<path d="M3 12a9 9 0 1 1 3 6.7"/><path d="M3 4v5h5"/>',
   };
 
   /**

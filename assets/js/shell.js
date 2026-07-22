@@ -33,6 +33,9 @@
     {
       key: "nav.group.personalAssistant",
       items: [
+        // First in the group: the handbook's first duty is keeping the CEO's
+        // day unblocked, and this is the screen that does it.
+        { href: "ceo.html", key: "ceo.title", icon: "crown", id: "ceo" },
         { href: "calendar.html", key: "nav.calendar", icon: "clock", id: "calendar" },
         { href: "tasks.html", key: "nav.myTasks", icon: "file-pen", id: "tasks", badge: "tasks" },
         { href: "notes.html", key: "nav.notes", icon: "layers", id: "notes" },

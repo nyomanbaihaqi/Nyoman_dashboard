@@ -156,8 +156,8 @@
         var owner = data.memberById.get(a.ownerId);
         lines.push(
           "- [" + (a.done ? "x" : " ") + "] " + a.text +
-            " — " + (owner ? owner.name : "—") +
-            " — " + (a.dueAt ? fmt.dayMonth(a.dueAt) : "tanpa tenggat"),
+            " — " + (owner ? owner.name : a.ownerHint || "—") +
+            " — " + (a.dueAt ? fmt.dayMonth(a.dueAt) : a.dueHint || "tanpa tenggat"),
         );
       });
     }
@@ -252,8 +252,16 @@
               '<div class="row" style="padding:12px 18px">' +
               ui.checkbox(a.done, a.text, { "action-toggle": a.id }) +
               '<span class="grow text-sm" style="color:var(--text-body)' + (a.done ? ";text-decoration:line-through;color:var(--slate-400)" : "") + '">' + esc(a.text) + "</span>" +
-              ui.avatar(owner, 24) + ui.priorityBadge(a.priority) +
-              '<span class="text-label muted" style="width:44px;text-align:right">' + esc(fmt.dayMonth(a.dueAt)) + "</span>" +
+              // An AI-extracted item can name someone who isn't a member yet.
+              // Showing the name it heard beats a blank avatar that loses it.
+              (owner
+                ? ui.avatar(owner, 24)
+                : a.ownerHint
+                  ? '<span class="text-label muted" style="max-width:90px" title="' + esc(a.ownerHint) + '">' + esc(a.ownerHint) + "</span>"
+                  : ui.avatar(owner, 24)) +
+              ui.priorityBadge(a.priority) +
+              '<span class="text-label muted" style="width:60px;text-align:right">' +
+              esc(a.dueAt ? fmt.dayMonth(a.dueAt) : a.dueHint || "—") + "</span>" +
               (a.convertedTaskId
                 ? '<span class="badge badge--success">' + esc(t("meetings.converted")) + "</span>"
                 : '<button type="button" class="btn btn--tinted btn--sm" data-convert-action="' + esc(a.id) + '">' + esc(t("action.convert")) + "</button>") +

@@ -372,7 +372,7 @@
       context: "Slot inventory di channel utama habis kalau lewat Jumat. Belanja Mei terpakai 92% dengan ROAS 3,1.",
       options: [], amount: 820, currency: "USD",
       requesterId: "m_priya", approverId: "m_alex", divisionId: "d_commercial",
-      state: "pending", requestedAt: at(TODAY, 9, 12), decidedAt: null, decisionNote: "",
+      state: "pending", requestedAt: at(TODAY, 9, 12), decidedAt: null, decisionNote: "", raiseOn: at(TODAY),
     },
     {
       id: "ap_2", title: "Safety stock vs percepat lead time supplier", kind: "decision",
@@ -381,7 +381,7 @@
       options: ["Andalkan safety stock, terima risiko kosong 9 hari", "Percepat lead time, biaya naik 8%"],
       amount: null, currency: "",
       requesterId: "m_dinda", approverId: "m_alex", divisionId: "d_ops",
-      state: "pending", requestedAt: at(TODAY, 8, 5), decidedAt: null, decisionNote: "",
+      state: "pending", requestedAt: at(TODAY, 8, 5), decidedAt: null, decisionNote: "", raiseOn: at(TODAY),
     },
     {
       id: "ap_3", title: "Mentor advanced track Host Academy", kind: "decision",
@@ -390,7 +390,55 @@
       options: ["Tunjuk mentor internal", "Rekrut eksternal", "Tunda ke kuartal depan"],
       amount: null, currency: "",
       requesterId: "m_fauzan", approverId: "m_alex", divisionId: "d_content",
-      state: "pending", requestedAt: at(TODAY - 1, 14), decidedAt: null, decisionNote: "",
+      state: "pending", requestedAt: at(TODAY - 1, 14), decidedAt: null, decisionNote: "", raiseOn: at(TODAY - 1),
+    },
+  ];
+
+  /**
+   * Perubahan Hari Ini — one small improvement tried per day.
+   *
+   * Seeded across three days on purpose: one still running, one finished with
+   * a written result, and one dropped. A log where every entry succeeded is a
+   * log nobody is being honest in.
+   */
+  var changes = [
+    {
+      id: "ch_1", title: "Rapat pagi dipotong jadi 15 menit",
+      description: "Standup harian sering molor sampai 40 menit karena bahas detail teknis yang cuma relevan buat 2 orang.",
+      date: at(TODAY), ownerId: "m_alex", divisionId: "d_ops", status: "running",
+      tasks: [
+        { id: "ct_1", text: "Umumkan format baru ke grup WA", done: true },
+        { id: "ct_2", text: "Siapkan template 3 pertanyaan", done: true },
+        { id: "ct_3", text: "Jalankan 3 hari berturut-turut", done: false },
+        { id: "ct_4", text: "Tanya balik ke tiap divisi, kepotong apa nggak", done: false },
+      ],
+      result: "", impact: "", reportedAt: null,
+      createdAt: at(TODAY, 7, 30), updatedAt: at(TODAY, 9, 5),
+    },
+    {
+      id: "ch_2", title: "Report harian pindah dari WA ke satu sheet",
+      description: "Report divisi tersebar di chat, hilang ketimbun. Coba satu sheet dengan kolom tetap.",
+      date: at(TODAY - 1), ownerId: "m_alex", divisionId: "", status: "done",
+      tasks: [
+        { id: "ct_5", text: "Bikin sheet dengan kolom tetap", done: true },
+        { id: "ct_6", text: "Minta 4 divisi isi selama sehari", done: true },
+        { id: "ct_7", text: "Bandingkan kelengkapannya sama WA", done: true },
+      ],
+      result: "4 dari 4 divisi isi lengkap, dibanding 2 dari 4 waktu masih di WA. Waktu rekap turun dari 35 menit jadi 8 menit.",
+      impact: "positive", reportedAt: at(TODAY - 1, 17),
+      createdAt: at(TODAY - 1, 8), updatedAt: at(TODAY - 1, 17),
+    },
+    {
+      id: "ch_3", title: "Approval budget lewat form, bukan chat",
+      description: "Coba semua permintaan budget masuk lewat form supaya ada jejaknya.",
+      date: at(TODAY - 3), ownerId: "m_priya", divisionId: "d_commercial", status: "dropped",
+      tasks: [
+        { id: "ct_8", text: "Bikin form dengan 5 field", done: true },
+        { id: "ct_9", text: "Pakai selama 2 hari", done: true },
+      ],
+      result: "Ditinggal. Form nambah satu langkah tapi tetap harus dikejar di WA juga, jadi malah dobel kerja. Yang kepakai cuma kolom nominal dan alasan — dua itu dipindah ke halaman Decisions.",
+      impact: "negative", reportedAt: at(TODAY - 2, 11),
+      createdAt: at(TODAY - 3, 9), updatedAt: at(TODAY - 2, 11),
     },
   ];
 
@@ -507,6 +555,7 @@
       ideas: ideas,
       threads: threads,
       approvals: approvals,
+      changes: changes,
       notifications: notifications,
       folders: folders,
       files: files,

@@ -1,5 +1,5 @@
 /* ──────────────────────────────────────────────────────────────
-   Notes & Meetings hub — Home / Meetings / Notes / Daily / Ideas.
+   Notes & Meetings hub — Home / Meetings / Notes / AI Recap.
    Meeting Detail and Note Detail are separate pages (meeting.html,
    note.html) so they're deep-linkable from search and elsewhere.
    ────────────────────────────────────────────────────────────── */
@@ -17,7 +17,8 @@
 
   var page;
   var data;
-  var state = { view: "home", meetingsFilter: "all", ideasFilter: "all" };
+  var state = { view: "home", meetingsFilter: "all" };
+  var recap = { busy: false, stage: "uploading", ratio: 0, report: null, error: "" };
 
   function nonDaily(list) {
     return list.filter(function (n) {
@@ -254,116 +255,265 @@
     );
   }
 
-  /* ── Daily ─────────────────────────────────────────────────── */
+  /* ── AI Recap ───────────────────────────────────────────────
+     Drop in a recording, get back the handbook's five-point MoM.
 
-  function dailyView() {
-    var dailies = data.notes.filter(function (n) {
-      return n.kind === "daily";
-    }).sort(WOS.by("createdAt", "desc"));
+     The result is held here until it's saved, and saving writes a
+     `meetings` record — so the minutes land on the Meeting page that
+     already knows how to display and WhatsApp them, rather than in a
+     second place that does the same job slightly differently.
+     ────────────────────────────────────────────────────────── */
 
-    var groups = WOS.groupBy(dailies, function (n) {
-      return fmt.dayGroup(n.createdAt);
+  var COMPONENTS = [
+    { key: "fact", field: "fact", tone: "var(--sky-600)", tint: "#f0f9ff" },
+    { key: "assumption", field: "assumption", tone: "var(--amber-600)", tint: "#fffbeb" },
+    { key: "proposal", field: "proposal", tone: "var(--antar-purple)", tint: "var(--antar-purple-light)" },
+    { key: "decision", field: "decisions", tone: "var(--emerald-600)", tint: "#ecfdf5" },
+    { key: "action", field: "actionItems", tone: "var(--rose-600, #e11d48)", tint: "#fff1f2" },
+  ];
+
+  /** Every component holds a list; these two hold objects, not strings. */
+  function componentLines(report, field) {
+    var items = report[field] || [];
+    return items.map(function (item) {
+      if (field === "decisions") return { text: item.text, meta: item.time || "" };
+      if (field === "actionItems") {
+        var meta = [item.owner, item.dueHint, item.priority].filter(Boolean).join(" · ");
+        return { text: item.text, meta: meta };
+      }
+      return { text: item, meta: "" };
     });
-
-    var main = Array.from(groups.keys())
-      .map(function (label) {
-        return (
-          '<p class="eyebrow" style="margin-top:16px">' + esc(label) + "</p>" +
-          groups
-            .get(label)
-            .map(function (n) {
-              return (
-                '<a class="card card-lift" href="note.html?id=' + esc(n.id) + '" style="display:flex;gap:12px;margin-top:10px;padding-left:14px;position:relative;overflow:hidden">' +
-                '<span style="position:absolute;left:0;top:0;height:100%;width:4px;background:var(--antar-purple)"></span>' +
-                '<span><span class="text-label faint" style="display:block">' + esc(fmt.time(n.createdAt)) + "</span>" +
-                '<span style="display:block;font-size:14px;font-weight:600;color:var(--text-strong);margin-top:2px">' + esc(WOS.nameOr(n.title, t("common.untitled"))) + "</span>" +
-                '<span class="text-sm muted" style="display:block;margin-top:3px;line-height:1.5">' + esc(n.content) + "</span></span></a>"
-              );
-            })
-            .join("")
-        );
-      })
-      .join("");
-
-    return (
-      '<div class="grid grid--lg-2" style="grid-template-columns:1fr 260px;align-items:start">' +
-      '<div>' + (main || '<div class="card">' + ui.empty(t("state.empty")) + "</div>") + "</div>" +
-      '<div class="card" style="height:fit-content">' +
-      '<h2 class="card__title">' + esc(fmt.monthYear(new Date())) + "</h2>" +
-      '<div class="mini-cal" style="margin-top:10px">' + miniCalDays(dailies) + "</div></div></div>"
-    );
   }
 
-  function miniCalDays(dailies) {
-    var now = new Date();
-    var daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    var hasNote = {};
-    dailies.forEach(function (n) {
-      var d = new Date(n.createdAt);
-      if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) hasNote[d.getDate()] = true;
-    });
-    var html = "";
-    for (var i = 1; i <= daysInMonth; i++) {
-      var isToday = i === now.getDate();
-      html += '<span class="mini-cal__day' + (isToday ? " is-today" : "") + '"' +
-        (hasNote[i] && !isToday ? ' style="background:var(--antar-purple-light);color:var(--antar-purple);font-weight:700"' : "") + ">" + i + "</span>";
+  function recapView() {
+    if (recap.report) return recapResult();
+
+    if (recap.busy) {
+      return (
+        '<div class="card" style="text-align:center;padding:38px 20px">' +
+        '<div class="spin" style="margin:0 auto;width:26px;height:26px;border:3px solid var(--border-subtle);border-top-color:var(--antar-purple);border-radius:50%"></div>' +
+        '<p style="margin-top:16px;font-size:15px;font-weight:700;color:var(--text-strong)">' +
+        esc(t("recap.stage." + recap.stage)) + "</p>" +
+        (recap.stage === "uploading"
+          ? '<div class="recap__bar" style="margin-top:14px"><span style="width:' +
+            Math.round(recap.ratio * 100) + '%"></span></div>' +
+            '<p class="text-label muted" style="margin-top:8px">' + Math.round(recap.ratio * 100) + "%</p>"
+          : '<p class="text-label muted" style="margin-top:8px">' + esc(t("recap.stageHint." + recap.stage)) + "</p>") +
+        "</div>"
+      );
     }
-    return html;
-  }
-
-  /* ── Ideas ─────────────────────────────────────────────────── */
-
-  function ideasView() {
-    var filter = state.ideasFilter;
-    var list = data.ideas.filter(function (i) {
-      return filter === "all" || i.status === filter;
-    }).sort(WOS.by("createdAt", "desc"));
-
-    var chips = [
-      { id: "all", label: t("projects.filter.all") },
-      { id: "draft", label: t("ideas.status.draft") },
-      { id: "validated", label: t("ideas.status.validated") },
-      { id: "archived", label: t("ideas.status.archived") },
-    ];
-
-    var head =
-      '<div class="page__head">' +
-      '<h2 class="page__title" style="font-size:19px">' + esc(t("ideas.title")) + "</h2>" +
-      '<div class="cluster">' +
-      '<div class="chips">' +
-      chips
-        .map(function (chip) {
-          return (
-            '<button type="button" class="chip' + (filter === chip.id ? " is-active" : "") +
-            '" data-ideas-filter="' + chip.id + '">' + esc(chip.label) + "</button>"
-          );
-        })
-        .join("") +
-      "</div>" +
-      '<button type="button" class="btn btn--primary btn--sm" data-new-idea>' + icon("lightbulb", 14, { color: "#fff" }) + esc(t("ideas.newIdea")) + "</button>" +
-      "</div></div>";
-
-    if (!list.length) return head + '<div class="card" style="margin-top:18px">' + ui.empty(t("state.empty"), null, null, "lightbulb") + "</div>";
 
     return (
-      head +
-      '<div class="masonry" style="margin-top:18px">' +
-      list
-        .map(function (i) {
-          return (
-            '<div class="card">' + ui.badge(t("ideas.status." + i.status), ui.IDEA_TONE[i.status]) +
-            '<p style="font-size:14.5px;font-weight:700;color:var(--text-strong);margin-top:10px">' + esc(WOS.nameOr(i.title, t("common.untitled"))) + "</p>" +
-            '<p class="text-label muted" style="margin-top:6px;line-height:1.6">' + esc(i.text) + "</p></div>"
-          );
-        })
-        .join("") +
-      "</div>"
+      '<div class="page__head"><h2 class="page__title" style="font-size:19px">' + esc(t("recap.title")) + "</h2></div>" +
+      '<p class="text-sm muted" style="margin-top:2px;max-width:620px;line-height:1.6">' + esc(t("recap.intro")) + "</p>" +
+      (recap.error
+        ? '<div class="card" style="margin-top:16px;border-color:var(--rose-300,#fda4af);background:#fff1f2">' +
+          '<p class="text-sm fw-semibold" style="color:#9f1239">' + esc(t("recap.failed")) + "</p>" +
+          '<p class="text-label" style="margin-top:6px;font-family:var(--font-mono);color:#9f1239;line-height:1.6">' +
+          esc(recap.error) + "</p></div>"
+        : "") +
+      '<label class="dropzone" data-recap-drop style="margin-top:16px;display:block;cursor:pointer">' +
+      '<input type="file" accept="audio/*,video/*" data-recap-file hidden>' +
+      icon("mic", 26, { color: "var(--antar-purple)" }) +
+      '<span style="display:block;margin-top:10px;font-size:15px;font-weight:700;color:var(--text-strong)">' +
+      esc(t("recap.drop")) + "</span>" +
+      '<span class="text-label muted" style="display:block;margin-top:4px">' + esc(t("recap.dropHint")) + "</span>" +
+      "</label>" +
+      '<div class="card" style="margin-top:16px">' +
+      '<h3 class="card__title" style="font-size:13px">' + esc(t("recap.pasteTitle")) + "</h3>" +
+      '<p class="text-label muted" style="margin-top:4px">' + esc(t("recap.pasteHint")) + "</p>" +
+      '<textarea class="textarea" data-recap-transcript rows="5" style="margin-top:10px" placeholder="' +
+      esc(t("recap.pastePlaceholder")) + '"></textarea>' +
+      '<div style="margin-top:10px"><button type="button" class="btn btn--outline btn--sm" data-recap-analyze>' +
+      icon("sparkles", 13) + esc(t("recap.analyze")) + "</button></div></div>"
     );
   }
+
+  function recapResult() {
+    var report = recap.report;
+    return (
+      '<div class="page__head"><h2 class="page__title" style="font-size:19px">' +
+      esc(WOS.nameOr(report.title, t("common.untitled"))) + "</h2>" +
+      '<div class="cluster">' +
+      '<button type="button" class="btn btn--ghost btn--sm" data-recap-reset>' + esc(t("recap.startOver")) + "</button>" +
+      '<button type="button" class="btn btn--outline btn--sm" data-recap-copy>' + icon("message-square", 13) + esc(t("mom.copy")) + "</button>" +
+      '<button type="button" class="btn btn--primary btn--sm" data-recap-save>' + esc(t("recap.save")) + "</button>" +
+      "</div></div>" +
+      (report.confidence !== undefined
+        ? '<p class="text-label muted" style="margin-top:2px">' +
+          esc(t("recap.confidence", { n: report.confidence })) + (report.language ? " · " + esc(report.language) : "") + "</p>"
+        : "") +
+      '<div class="card" style="margin-top:14px"><div class="stack">' +
+      COMPONENTS.map(function (step, index) {
+        var lines = componentLines(report, step.field);
+        return (
+          '<div style="display:flex;gap:14px">' +
+          '<div style="display:flex;flex-direction:column;align-items:center;flex:none">' +
+          '<span style="width:26px;height:26px;border-radius:50%;flex:none;display:flex;align-items:center;' +
+          "justify-content:center;font-size:11px;font-weight:700;background:" + step.tint + ";color:" + step.tone + '">' +
+          (index + 1) + "</span>" +
+          (index < COMPONENTS.length - 1 ? '<span style="width:1.5px;flex:1;margin-top:4px;background:var(--border-subtle)"></span>' : "") +
+          "</div>" +
+          '<div style="flex:1;min-width:0;padding-bottom:' + (index < COMPONENTS.length - 1 ? "18px" : "0") + '">' +
+          '<p class="eyebrow" style="color:' + step.tone + '">' + esc(t("mom." + step.key)) + "</p>" +
+          '<p class="text-label faint" style="margin-top:1px">' + esc(t("mom." + step.key + ".hint")) + "</p>" +
+          (lines.length
+            ? '<ul style="margin-top:8px;display:flex;flex-direction:column;gap:6px">' +
+              lines
+                .map(function (line) {
+                  return (
+                    '<li style="display:flex;gap:8px;font-size:13.5px;line-height:1.55;color:var(--text-body)">' +
+                    '<span style="color:' + step.tone + ';flex:none">•</span><span>' + esc(line.text) +
+                    (line.meta ? ' <span class="text-label faint">(' + esc(line.meta) + ")</span>" : "") +
+                    "</span></li>"
+                  );
+                })
+                .join("") +
+              "</ul>"
+            : '<p class="text-sm muted" style="margin-top:8px">' + esc(t("mom.empty")) + "</p>") +
+          "</div></div>"
+        );
+      }).join("") +
+      "</div></div>" +
+      ((report.openQuestions || []).length
+        ? '<div class="card" style="margin-top:14px"><h3 class="card__title" style="font-size:13px">' +
+          esc(t("recap.openQuestions")) + "</h3><ul style=\"margin-top:8px\">" +
+          report.openQuestions
+            .map(function (q) {
+              return '<li style="font-size:13.5px;line-height:1.6;color:var(--text-body);padding:3px 0">• ' + esc(q) + "</li>";
+            })
+            .join("") + "</ul></div>"
+        : "")
+    );
+  }
+
+  /** The five points as WhatsApp-ready text, matching the Meeting page. */
+  function recapText() {
+    var report = recap.report;
+    var lines = ["*MEETING NOTES*", "Topik: " + (report.title || "—"), ""];
+    if (report.summary) lines.push(report.summary, "");
+
+    COMPONENTS.forEach(function (step) {
+      lines.push("*" + t("mom." + step.key).toUpperCase() + ":*");
+      var items = componentLines(report, step.field);
+      if (!items.length) lines.push("-");
+      items.forEach(function (line) {
+        lines.push("- " + line.text + (line.meta ? " (" + line.meta + ")" : ""));
+      });
+      lines.push("");
+    });
+    return lines.join("\n");
+  }
+
+  /** Match a spoken name to a member, so action items get a real owner. */
+  function memberIdByName(name) {
+    if (!name) return null;
+    var needle = String(name).trim().toLowerCase();
+    if (!needle) return null;
+    var hit = (data.members || []).filter(function (m) {
+      var full = String(m.name || "").toLowerCase();
+      return full === needle || full.split(" ")[0] === needle || full.indexOf(needle) === 0;
+    })[0];
+    return hit ? hit.id : null;
+  }
+
+  /** Write the report into the `meetings` shape the Meeting page reads. */
+  function saveRecap() {
+    var report = recap.report;
+    var now = new Date();
+
+    return WOS.db.create("meetings", {
+      title: WOS.nameOr(report.title, t("common.untitled")),
+      startAt: now.toISOString(),
+      durationMin: 60,
+      participantIds: [],
+      projectId: null,
+      status: "processed",
+      tags: report.keywords || [],
+      ownerId: WOS.config.currentUserId,
+      divisionId: "",
+      objective: report.summary || "",
+      decisionsNeeded: [],
+      preReads: [],
+      sop: [],
+      summary: report.summary || "",
+      fact: report.fact || [],
+      assumption: report.assumption || [],
+      proposal: report.proposal || [],
+      decisions: report.decisions || [],
+      openQuestions: report.openQuestions || [],
+      actionItems: (report.actionItems || []).map(function (item, index) {
+        return {
+          id: "ai_" + Date.now().toString(36) + index,
+          text: item.text,
+          // An unmatched name is left unassigned on purpose: a wrong owner is
+          // worse than none, because nobody double-checks an assigned task.
+          ownerId: memberIdByName(item.owner),
+          ownerHint: item.owner || "",
+          priority: item.priority || "medium",
+          dueAt: null,
+          dueHint: item.dueHint || "",
+          done: false,
+          convertedTaskId: null,
+        };
+      }),
+      transcript: [],
+      keywords: report.keywords || [],
+      language: report.language || "",
+      sentiment: "",
+      aiConfidence: report.confidence === undefined ? null : report.confidence,
+    });
+  }
+
+  function runRecap(promise) {
+    recap.busy = true;
+    recap.error = "";
+    recap.stage = "uploading";
+    recap.ratio = 0;
+    render();
+
+    promise
+      .then(function (report) {
+        recap.busy = false;
+        recap.report = report;
+        render();
+      })
+      .catch(function (error) {
+        console.error("[wos] the recap failed", error);
+        recap.busy = false;
+        recap.error = (error && error.message) || String(error);
+        render();
+      });
+  }
+
+  function stageTracker() {
+    return function (stage, ratio) {
+      recap.stage = stage;
+      recap.ratio = ratio || 0;
+      // Only the upload has a real percentage; repainting on every progress
+      // event during the other stages would just flicker.
+      if (stage === "uploading") paintProgress();
+      else render();
+    };
+  }
+
+  /** Update the bar in place — a full render would drop the spinner's animation. */
+  function paintProgress() {
+    var bar = WOS.$(".recap__bar span", page);
+    if (!bar) {
+      render();
+      return;
+    }
+    bar.style.width = Math.round(recap.ratio * 100) + "%";
+    var label = bar.parentNode.nextElementSibling;
+    if (label) label.textContent = Math.round(recap.ratio * 100) + "%";
+  }
+
+
 
   /* ── Render ────────────────────────────────────────────────── */
 
-  var VIEWS = ["home", "meetings", "notes", "daily", "ideas"];
+  var VIEWS = ["home", "meetings", "notes", "recap"];
 
   function render() {
     page.innerHTML =
@@ -381,8 +531,7 @@
     if (state.view === "home") body.innerHTML = homeView();
     else if (state.view === "meetings") body.innerHTML = meetingsView();
     else if (state.view === "notes") body.innerHTML = notesListView();
-    else if (state.view === "daily") body.innerHTML = dailyView();
-    else body.innerHTML = ideasView();
+    else body.innerHTML = recapView();
   }
 
   function bind() {
@@ -399,9 +548,60 @@
       state.meetingsFilter = target.dataset.meetingsFilter;
       render();
     });
-    WOS.on(page, "click", "[data-ideas-filter]", function (event, target) {
-      state.ideasFilter = target.dataset.ideasFilter;
+    WOS.on(page, "change", "[data-recap-file]", function (event, input) {
+      var file = input.files && input.files[0];
+      if (!file) return;
+      runRecap(WOS.ai.fromRecording(file, { onStage: stageTracker() }));
+    });
+
+    // Dropping a file onto the label, as well as picking one through it.
+    WOS.on(page, "dragover", "[data-recap-drop]", function (event, drop) {
+      event.preventDefault();
+      drop.classList.add("is-over");
+    });
+    WOS.on(page, "dragleave", "[data-recap-drop]", function (event, drop) {
+      drop.classList.remove("is-over");
+    });
+    WOS.on(page, "drop", "[data-recap-drop]", function (event, drop) {
+      event.preventDefault();
+      drop.classList.remove("is-over");
+      var file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
+      if (file) runRecap(WOS.ai.fromRecording(file, { onStage: stageTracker() }));
+    });
+
+    WOS.on(page, "click", "[data-recap-analyze]", function () {
+      var box = WOS.$("[data-recap-transcript]", page);
+      var text = box ? box.value.trim() : "";
+      if (!text) {
+        ui.toast(t("recap.pasteEmpty"), "error");
+        return;
+      }
+      recap.stage = "reading";
+      runRecap(WOS.ai.fromTranscript(text, { onStage: stageTracker() }));
+    });
+
+    WOS.on(page, "click", "[data-recap-reset]", function () {
+      recap.report = null;
+      recap.error = "";
       render();
+    });
+
+    WOS.on(page, "click", "[data-recap-copy]", function () {
+      ui.copyText(recapText());
+      ui.toast(t("mom.copied"));
+    });
+
+    WOS.on(page, "click", "[data-recap-save]", function (event, button) {
+      button.disabled = true;
+      saveRecap()
+        .then(function (saved) {
+          window.location.href = "meeting.html?id=" + saved.id;
+        })
+        .catch(function (error) {
+          console.error("[wos] saving the recap failed", error);
+          button.disabled = false;
+          ui.toast(t("recap.saveFailed") + " (" + ((error && error.message) || error) + ")", "error");
+        });
     });
     WOS.on(page, "click", "[data-suggestion]", function () {
       ui.toast(t("mi.aiPending"));
@@ -439,52 +639,11 @@
       window.location.href = "note.html?new=1";
     });
 
-    WOS.on(page, "click", "[data-new-idea]", openIdeaModal);
-  }
-
-  function openIdeaModal() {
-    var body =
-      '<form class="stack">' +
-      '<div class="field"><label class="field__label">' + esc(t("ideas.title")) + '</label>' +
-      '<input class="input" name="title" required></div>' +
-      '<div class="field"><label class="field__label">' + esc(t("action.edit")) + '</label>' +
-      '<textarea class="textarea" name="text" rows="3"></textarea></div>' +
-      '<div class="field"><label class="field__label">' + esc(t("tasks.col.status")) + '</label>' +
-      '<select class="select" name="status">' +
-      ["draft", "validated", "archived"].map(function (s) {
-        return '<option value="' + s + '">' + esc(t("ideas.status." + s)) + "</option>";
-      }).join("") + "</select></div>" +
-      '<div class="modal__actions">' +
-      '<button type="button" class="btn btn--ghost" data-close-modal>' + esc(t("action.cancel")) + "</button>" +
-      '<button type="submit" class="btn btn--primary">' + esc(t("action.save")) + "</button></div></form>";
-
-    ui.modal({
-      title: t("ideas.newIdea"),
-      body: body,
-      onSubmit: function (form) {
-        var formData = new FormData(form);
-        var title = String(formData.get("title") || "").trim();
-        if (!title) return;
-        WOS.db
-          .create("ideas", {
-            title: title,
-            text: formData.get("text") || "",
-            status: formData.get("status"),
-            authorId: WOS.config.currentUserId,
-            createdAt: new Date().toISOString(),
-          })
-          .then(function () {
-            ui.closeModal();
-            return refresh();
-          });
-      },
-    });
   }
 
   function refresh() {
-    return WOS.db.loadAll(["notes", "ideas"]).then(function (loaded) {
+    return WOS.db.loadAll(["notes"]).then(function (loaded) {
       data.notes = loaded.notes;
-      data.ideas = loaded.ideas;
       render();
     });
   }
@@ -502,7 +661,7 @@
     .then(function (main) {
       page = main;
       page.innerHTML = WOS.ui.skeletonRows(4, 90);
-      return WOS.db.loadAll(["notes", "meetings", "ideas", "members", "projects"]);
+      return WOS.db.loadAll(["notes", "meetings", "members", "projects"]);
     })
     .then(function (loaded) {
       data = loaded;

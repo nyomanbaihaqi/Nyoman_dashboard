@@ -390,10 +390,11 @@
     if (!project) return "";
     var num = (String(task.id).match(/(\d+)$/) || [])[1];
     if (!num) return "";
-    var initials = project.name
+    // A project row whose name cell is empty arrives as null from Sheets.
+    var initials = String(project.name || "")
       .split(/\s+/)
       .map(function (word) {
-        return word[0];
+        return word[0] || "";
       })
       .join("")
       .toUpperCase()
@@ -617,12 +618,23 @@
     var lines = String(source || "").split("\n");
     var html = "";
     var index = 0;
+    // Position of each checkbox in reading order, so a click in the rendered
+    // view can find the matching "[ ]" in the source. Counted here rather than
+    // in the click handler, which never sees the markdown.
+    var checkIndex = 0;
 
     function inline(text) {
       // Escape first, then re-introduce the few inline marks we support.
       return esc(text)
         .replace(/`([^`]+)`/g, "<code>$1</code>")
         .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+        .replace(/~~([^~]+)~~/g, "<del>$1</del>")
+        .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, function (match, label, href) {
+          // esc() already ran, so href can't break out of the attribute — but
+          // it could still be "javascript:". Only linkify schemes that navigate.
+          if (!/^(https?:\/\/|mailto:|\/|#)/i.test(href)) return match;
+          return '<a href="' + href + '" target="_blank" rel="noopener noreferrer">' + label + "</a>";
+        })
         .replace(/\*([^*]+)\*/g, "<em>$1</em>");
     }
 
@@ -672,12 +684,26 @@
         continue;
       }
 
-      // Headings
-      var heading = line.match(/^(#{2,3})\s+(.*)$/);
+      // Headings. "#" is accepted but rendered as h2: the page already has an
+      // h1 in the document title, and a second one would misreport the outline.
+      var heading = line.match(/^(#{1,3})\s+(.*)$/);
       if (heading) {
-        var level = heading[1].length;
+        var level = Math.max(2, heading[1].length);
         html += "<h" + level + ">" + inline(heading[2]) + "</h" + level + ">";
         index++;
+        continue;
+      }
+
+      // Numbered list. The numbers written in the source are ignored for
+      // display — the browser renumbers — so inserting an item mid-list never
+      // leaves a wrong sequence on screen.
+      if (/^\s*\d+[.)]\s/.test(line)) {
+        var ordered = "";
+        while (index < lines.length && /^\s*\d+[.)]\s/.test(lines[index])) {
+          ordered += "<li>" + inline(lines[index].replace(/^\s*\d+[.)]\s/, "")) + "</li>";
+          index++;
+        }
+        html += "<ol>" + ordered + "</ol>";
         continue;
       }
 
@@ -716,13 +742,18 @@
           var check = item.match(/^\[([ xX])\]\s*(.*)$/);
           if (check) {
             var done = check[1].toLowerCase() === "x";
+            // A real <button>, so the list is tickable with the keyboard too.
+            // Pages that don't handle the click still render it correctly.
             items +=
               '<li class="cluster" style="padding:6px 0;align-items:flex-start">' +
-              '<span class="check__box" style="margin-top:2px' +
+              '<button type="button" class="check__box" data-check-index="' + checkIndex + '"' +
+              ' aria-pressed="' + (done ? "true" : "false") + '"' +
+              ' style="margin-top:2px;cursor:pointer' +
               (done ? ";background:var(--emerald-500);border-color:var(--emerald-500)" : "") + '">' +
-              (done ? WOS.icon("check", 12) : "") + "</span>" +
+              (done ? WOS.icon("check", 12, { color: "#fff" }) : "") + "</button>" +
               '<span style="flex:1' + (done ? ";text-decoration:line-through;color:var(--slate-400)" : "") + '">' +
               inline(check[2]) + "</span></li>";
+            checkIndex++;
           } else {
             items += '<li style="padding:4px 0 4px 18px;position:relative">• ' + inline(item) + "</li>";
           }
@@ -734,7 +765,12 @@
 
       // Paragraph — consume until a blank line
       var para = [];
-      while (index < lines.length && lines[index].trim() && !/^([-*>#|]|```)/.test(lines[index])) {
+      while (
+        index < lines.length &&
+        lines[index].trim() &&
+        !/^([-*>#|]|```)/.test(lines[index]) &&
+        !/^\s*\d+[.)]\s/.test(lines[index])
+      ) {
         para.push(lines[index]);
         index++;
       }
@@ -743,6 +779,30 @@
     }
 
     return html;
+  }
+
+  /**
+   * Flip the nth "- [ ]" in raw markdown, counting in reading order so the
+   * index matches what markdown() stamped on the button.
+   *
+   * Returns the source unchanged when the index isn't found, which happens if
+   * the note was edited in another tab between render and click — better a
+   * no-op than ticking the wrong line.
+   */
+  function toggleCheckbox(source, index) {
+    var lines = String(source || "").split("\n");
+    var seen = 0;
+    for (var i = 0; i < lines.length; i++) {
+      var match = lines[i].match(/^(\s*[-*]\s\[)([ xX])(\]\s?)/);
+      if (!match) continue;
+      if (seen === index) {
+        lines[i] = match[1] + (match[2].toLowerCase() === "x" ? " " : "x") + match[3] +
+          lines[i].slice(match[0].length);
+        return lines.join("\n");
+      }
+      seen++;
+    }
+    return source;
   }
 
   function splitRow(line) {
@@ -773,6 +833,7 @@
     modal: modal,
     closeModal: closeModal,
     markdown: markdown,
+    toggleCheckbox: toggleCheckbox,
     kanbanBoard: kanbanBoard,
     taskCode: taskCode,
     taskModal: taskModal,
