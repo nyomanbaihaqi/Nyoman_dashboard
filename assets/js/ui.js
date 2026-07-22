@@ -201,6 +201,97 @@
     return html + "</div>";
   }
 
+  /* ── Copy to clipboard ─────────────────────────────────────── */
+
+  /**
+   * Every recurring output in this workspace ends up pasted into WhatsApp —
+   * the daily brief, the MoM, the weekly report. So plain text is the real
+   * deliverable, and copying it is a first-class action rather than an export
+   * buried in a menu.
+   *
+   * Falls back to a hidden textarea because the async Clipboard API needs a
+   * secure context, which `file://` isn't — and this app is meant to run by
+   * opening index.html directly too.
+   */
+  function copyText(text, successKey) {
+    var done = function () {
+      toast(t(successKey || "action.copy"));
+    };
+    var fail = function () {
+      toast(t("state.error"), "error");
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(done, function () {
+        legacyCopy(text) ? done() : fail();
+      });
+      return;
+    }
+    legacyCopy(text) ? done() : fail();
+  }
+
+  function legacyCopy(text) {
+    var area = document.createElement("textarea");
+    area.value = text;
+    area.setAttribute("readonly", "");
+    area.style.position = "fixed";
+    area.style.top = "-1000px";
+    document.body.appendChild(area);
+    area.select();
+    var ok = false;
+    try {
+      ok = document.execCommand("copy");
+    } catch (err) {
+      ok = false;
+    }
+    area.remove();
+    return ok;
+  }
+
+  /* ── Schedule conflicts ────────────────────────────────────── */
+
+  /**
+   * "Jangan sampai overlap dengan meeting lain" is a line in the PA's job
+   * description, so a clash has to be visible without anyone comparing times
+   * by eye. Returns a Map of event id → the events it overlaps.
+   *
+   * Touching edges don't count: a 09:00–10:00 followed by 10:00–11:00 is a
+   * back-to-back day, not a double booking.
+   */
+  function findConflicts(events) {
+    var sorted = (events || [])
+      .filter(function (e) {
+        // All-day entries span the whole day by definition, so they collide
+        // with everything on it. Leave, a public holiday, a travel day — none
+        // of those are double bookings, and flagging them would train the eye
+        // to ignore the warning that matters.
+        return e.startAt && e.endAt && !e.allDay;
+      })
+      .slice()
+      .sort(function (a, b) {
+        return new Date(a.startAt) - new Date(b.startAt);
+      });
+
+    var clashes = new Map();
+    for (var i = 0; i < sorted.length; i++) {
+      for (var j = i + 1; j < sorted.length; j++) {
+        var a = sorted[i];
+        var b = sorted[j];
+        // Sorted by start, so once b starts at or after a ends, nothing
+        // further can overlap a either.
+        if (new Date(b.startAt) >= new Date(a.endAt)) break;
+        push(clashes, a.id, b);
+        push(clashes, b.id, a);
+      }
+    }
+    return clashes;
+  }
+
+  function push(map, key, value) {
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(value);
+  }
+
   /* ── Toast ─────────────────────────────────────────────────── */
 
   function toastHost() {
@@ -685,6 +776,8 @@
     kanbanBoard: kanbanBoard,
     taskCode: taskCode,
     taskModal: taskModal,
+    copyText: copyText,
+    findConflicts: findConflicts,
 
     PRIORITY_TONE: PRIORITY_TONE,
     STATUS_TONE: STATUS_TONE,

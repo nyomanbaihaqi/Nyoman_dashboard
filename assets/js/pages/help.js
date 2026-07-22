@@ -68,7 +68,7 @@
       '<div class="row">' + icon("briefcase", 15, { color: "var(--antar-purple)" }) +
       '<span class="text-sm" style="color:var(--text-body)">Project Manager — projects, kanban, timeline</span></div>' +
       '<div class="row">' + icon("rocket", 15, { color: "var(--antar-purple)" }) +
-      '<span class="text-sm" style="color:var(--text-body)">AI Engineer — automations, prompts, meeting intelligence</span></div>' +
+      '<span class="text-sm" style="color:var(--text-body)">AI Engineer — automations, templates, documents</span></div>' +
       "</div></div></div>";
   }
 

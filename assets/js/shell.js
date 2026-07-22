@@ -23,39 +23,37 @@
 
   var TOP_LINKS = [
     { href: "index.html", key: "nav.home", icon: "grid", id: "home" },
-    { href: "inbox.html", key: "nav.inbox", icon: "message-square", id: "inbox", badge: "inbox" },
+    { href: "brief.html", key: "brief.title", icon: "message-square", id: "brief" },
   ];
 
+  /* Grouped in the order the role handbook prioritises them: the PA keeps the
+     CEO's day intact, the PM keeps execution moving, the AI Engineer improves
+     the system. Nav order follows that, not feature count. */
   var GROUPS = [
     {
       key: "nav.group.personalAssistant",
       items: [
-        { href: "tasks.html", key: "nav.myTasks", icon: "file-pen", id: "tasks", badge: "tasks" },
         { href: "calendar.html", key: "nav.calendar", icon: "clock", id: "calendar" },
+        { href: "tasks.html", key: "nav.myTasks", icon: "file-pen", id: "tasks", badge: "tasks" },
         { href: "notes.html", key: "nav.notes", icon: "layers", id: "notes" },
-        { href: "meeting-intelligence.html", key: "nav.meetingIntelligence", icon: "bot", id: "mi" },
+        { href: "templates.html", key: "templates.title", icon: "lightbulb", id: "templates" },
+        { href: "approvals.html", key: "decisions.title", icon: "shield-user", id: "approvals", badge: "approvals" },
         { href: "notifications.html", key: "nav.reminders", icon: "bell", id: "notifications" },
-        { href: "approvals.html", key: "nav.approvals", icon: "shield-user", id: "approvals", badge: "approvals" },
       ],
     },
     {
       key: "nav.group.projectManager",
       items: [
+        { href: "weekly.html", key: "weekly.title", icon: "chart-line", id: "weekly" },
         { href: "projects.html", key: "nav.projects", icon: "briefcase", id: "projects" },
         { href: "timeline.html", key: "nav.timeline", icon: "chart-line", id: "timeline" },
-        { href: "kanban.html", key: "nav.kanban", icon: "boxes", id: "kanban" },
-        { href: "milestones.html", key: "nav.milestones", icon: "target", id: "milestones" },
         { href: "issues.html", key: "nav.issues", icon: "crosshair", id: "issues" },
       ],
     },
-    {
-      key: "nav.group.aiEngineer",
-      items: [
-        { href: "automations.html", key: "nav.automations", icon: "rocket", id: "automations" },
-        { href: "prompts.html", key: "nav.promptLibrary", icon: "lightbulb", id: "prompts" },
-        { href: "knowledge.html", key: "nav.documents", icon: "file-pen", id: "knowledge" },
-      ],
-    },
+    // The AI Engineer group is gone: Prompt Library held prompts for an AI
+    // that isn't wired up, Documents duplicated Notes, and Automations was a
+    // control panel for a scheduler that doesn't exist. Templates moved to
+    // Personal Assistant, where the person sending the invitations sits.
   ];
 
   var BOTTOM_LINKS = [
@@ -66,9 +64,9 @@
   /** Four primary destinations on the phone tab bar; "More" opens the drawer. */
   var TABS = [
     { href: "index.html", key: "nav.home", icon: "grid", id: "home" },
-    { href: "tasks.html", key: "nav.myTasks", icon: "file-pen", id: "tasks", badge: "tasks" },
+    { href: "brief.html", key: "brief.title", icon: "message-square", id: "brief" },
     { href: "calendar.html", key: "nav.calendar", icon: "clock", id: "calendar" },
-    { href: "notes.html", key: "nav.notes", icon: "layers", id: "notes" },
+    { href: "tasks.html", key: "nav.myTasks", icon: "file-pen", id: "tasks", badge: "tasks" },
   ];
 
   var state = { user: null, counts: { tasks: 0, inbox: 0, approvals: 0 }, active: "", searchIndex: null };
@@ -239,7 +237,7 @@
     if (state.searchIndex) return Promise.resolve(state.searchIndex);
 
     return WOS.db
-      .loadAll(["tasks", "projects", "notes", "meetings", "events", "workflows"])
+      .loadAll(["tasks", "projects", "notes", "meetings", "events"])
       .then(function (data) {
         var entries = [];
 
@@ -257,9 +255,6 @@
         });
         data.events.forEach(function (row) {
           entries.push({ id: "event:" + row.id, title: row.title, href: "calendar.html?event=" + row.id, icon: "clock", type: "search.type.event", at: row.startAt });
-        });
-        data.workflows.forEach(function (row) {
-          entries.push({ id: "workflow:" + row.id, title: row.name, href: "automations.html", icon: "rocket", type: "search.type.automation", at: row.lastRunAt });
         });
 
         state.searchIndex = entries;

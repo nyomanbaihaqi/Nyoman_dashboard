@@ -35,8 +35,11 @@
     var overdueTasks = data.tasks.filter(function (task) {
       return task.dueAt && fmt.isPast(task.dueAt) && task.status !== "done";
     });
-    var failingWorkflows = data.workflows.filter(function (w) {
-      return w.state === "failed";
+    // Blocked work is a risk the team reported out loud, so it belongs here
+    // alongside the two the app infers. It replaces the failing-automations
+    // section, which watched a scheduler that never existed.
+    var blockedTasks = data.tasks.filter(function (task) {
+      return task.status !== "done" && task.blocker;
     });
 
     var atRiskHtml = atRiskProjects.map(function (p) {
@@ -58,16 +61,22 @@
       );
     });
 
-    var failingHtml = failingWorkflows.map(function (w) {
+    var blockedHtml = blockedTasks.map(function (task) {
+      var assignee = data.memberById.get(task.assigneeId);
+      var division = data.divisionById.get(task.divisionId);
       return (
-        '<a class="row" href="automations.html">' + ui.iconTile(w.icon, w.iconBg, w.iconColor, "sm") +
-        '<span class="grow"><span class="row__title" style="display:block">' + esc(w.name) + "</span>" +
-        '<span class="row__meta" style="display:block">' + esc(t("automations.trigger", { trigger: w.trigger, time: fmt.relative(w.lastRunAt) })) + "</span></span>" +
-        ui.badge(t("automations.state.failed"), "danger") + "</a>"
+        '<a class="row" href="weekly.html" style="align-items:flex-start">' + ui.avatar(assignee, 26) +
+        '<span class="grow"><span class="row__title" style="display:block">' + esc(task.title) + "</span>" +
+        '<span class="row__meta" style="display:block">' + esc(task.blocker) +
+        (division ? " · " + esc(division.name) : "") + "</span></span>" +
+        (task.escalated ? ui.badge(t("weekly.escalated"), "danger") : ui.priorityBadge(task.priority)) + "</a>"
       );
     });
 
-    var body = section("issues.atRisk", "briefcase", atRiskHtml) + section("issues.overdue", "file-pen", overdueHtml) + section("issues.failing", "rocket", failingHtml);
+    var body =
+      section("issues.atRisk", "briefcase", atRiskHtml) +
+      section("weekly.blocked", "crosshair", blockedHtml) +
+      section("issues.overdue", "file-pen", overdueHtml);
 
     page.innerHTML =
       '<h1 class="page__title">' + esc(t("issues.title")) + "</h1>" +
@@ -82,11 +91,12 @@
     .then(function (main) {
       page = main;
       page.innerHTML = WOS.ui.skeletonRows(3, 100);
-      return WOS.db.loadAll(["projects", "tasks", "workflows", "members"]);
+      return WOS.db.loadAll(["projects", "tasks", "members", "divisions"]);
     })
     .then(function (loaded) {
       data = loaded;
       data.memberById = WOS.indexById(loaded.members);
+      data.divisionById = WOS.indexById(loaded.divisions);
       render();
     })
     .catch(function (error) {

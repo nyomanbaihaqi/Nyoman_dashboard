@@ -34,12 +34,26 @@
   /** Today as an offset from Monday (Mon = 0 … Sun = 6). */
   var TODAY = (new Date().getDay() + 6) % 7;
 
+  /**
+   * Divisions are the unit the PM job actually works in: tasks are handed to a
+   * division, followed up per division, and reviewed per division every week.
+   * `leadId` is who gets chased when that division goes quiet.
+   */
+  var divisions = [
+    { id: "d_commercial", name: "Commercial", leadId: "m_priya", color: "var(--rose-600)" },
+    { id: "d_engineering", name: "Engineering", leadId: "m_rizky", color: "var(--sky-600)" },
+    { id: "d_content", name: "Content", leadId: "m_fauzan", color: "var(--amber-600)" },
+    { id: "d_ops", name: "Operations", leadId: "m_dinda", color: "var(--emerald-600)" },
+  ];
+
+  // `role` is access level (owner/editor/viewer); `divisionId` is org structure.
+  // They answer different questions and are deliberately kept apart.
   var members = [
-    { id: "m_alex", name: "Alex Rivera", email: "alex@workspaceos.app", title: "PA · PM · AI Engineer", initials: "A", avatarColor: "var(--antar-purple)", photoUrl: "", role: "owner", timezone: "Asia/Jakarta" },
-    { id: "m_rizky", name: "Rizky P.", email: "rizky@workspaceos.app", title: "Engineering Lead", initials: "R", avatarColor: "var(--sky-600)", photoUrl: "", role: "editor", timezone: "Asia/Jakarta" },
-    { id: "m_fauzan", name: "Fauzan M.", email: "fauzan@workspaceos.app", title: "Content Producer", initials: "F", avatarColor: "var(--amber-600)", photoUrl: "", role: "editor", timezone: "Asia/Jakarta" },
-    { id: "m_priya", name: "Priya S.", email: "priya@workspaceos.app", title: "Marketing Lead", initials: "P", avatarColor: "var(--rose-600)", photoUrl: "", role: "editor", timezone: "Asia/Jakarta" },
-    { id: "m_dinda", name: "Dinda K.", email: "dinda@workspaceos.app", title: "Operations", initials: "D", avatarColor: "var(--emerald-600)", photoUrl: "", role: "viewer", timezone: "Asia/Jakarta" },
+    { id: "m_alex", name: "Alex Rivera", email: "alex@workspaceos.app", title: "PA · PM · AI Engineer", initials: "A", avatarColor: "var(--antar-purple)", photoUrl: "", role: "owner", divisionId: "", timezone: "Asia/Jakarta" },
+    { id: "m_rizky", name: "Rizky P.", email: "rizky@workspaceos.app", title: "Engineering Lead", initials: "R", avatarColor: "var(--sky-600)", photoUrl: "", role: "editor", divisionId: "d_engineering", timezone: "Asia/Jakarta" },
+    { id: "m_fauzan", name: "Fauzan M.", email: "fauzan@workspaceos.app", title: "Content Producer", initials: "F", avatarColor: "var(--amber-600)", photoUrl: "", role: "editor", divisionId: "d_content", timezone: "Asia/Jakarta" },
+    { id: "m_priya", name: "Priya S.", email: "priya@workspaceos.app", title: "Marketing Lead", initials: "P", avatarColor: "var(--rose-600)", photoUrl: "", role: "editor", divisionId: "d_commercial", timezone: "Asia/Jakarta" },
+    { id: "m_dinda", name: "Dinda K.", email: "dinda@workspaceos.app", title: "Operations", initials: "D", avatarColor: "var(--emerald-600)", photoUrl: "", role: "viewer", divisionId: "d_ops", timezone: "Asia/Jakarta" },
   ];
 
   var projects = [
@@ -76,21 +90,44 @@
     },
   ];
 
-  function task(id, title, description, priority, status, dueAt, assigneeId, projectId, tags, order, created, updated) {
+  /** Which division a member belongs to, for defaulting a task's owner side. */
+  var DIVISION_OF = {};
+  members.forEach(function (m) {
+    DIVISION_OF[m.id] = m.divisionId;
+  });
+
+  /**
+   * `extra` carries the fields the operating model needs beyond the basics:
+   *
+   *   divisionId       who owns it as a team, not just as a person
+   *   ownerConfirmed   the assignee has accepted it ("owner yang terverifikasi")
+   *   deadlineAgreed   the date was agreed, not imposed ("deadline yang disepakati")
+   *   blocker          what is holding it up, empty when nothing is
+   *   escalated        raised to the CEO deliberately, not inferred from being late
+   *   sourceMeetingId  the meeting this came out of, so a task traces home
+   */
+  function task(id, title, description, priority, status, dueAt, assigneeId, projectId, tags, order, created, updated, extra) {
+    extra = extra || {};
     return {
       id: id, title: title, description: description, priority: priority, status: status,
       dueAt: dueAt, assigneeId: assigneeId, projectId: projectId, tags: tags, order: order,
       createdAt: created, updatedAt: updated,
+      divisionId: extra.divisionId !== undefined ? extra.divisionId : DIVISION_OF[assigneeId] || "",
+      ownerConfirmed: !!extra.ownerConfirmed,
+      deadlineAgreed: !!extra.deadlineAgreed,
+      blocker: extra.blocker || "",
+      escalated: !!extra.escalated,
+      sourceMeetingId: extra.sourceMeetingId || null,
     };
   }
 
   var tasks = [
     task("t_1", "Review Host Performance Dashboard", "Walk through the reporting module and note anything that blocks launch.", "high", "in_progress", at(TODAY, 17), "m_alex", "p_dashboard", ["Dashboard"], 0, at(-3), at(-1)),
-    task("t_2", "Follow up Budget Approval", "Chase Priya on the June ads budget so the campaign slot is locked before Friday.", "high", "todo", at(TODAY, 11), "m_alex", null, ["Finance"], 1, at(-2), at(-1)),
+    task("t_2", "Follow up Budget Approval", "Chase Priya on the June ads budget so the campaign slot is locked before Friday.", "high", "todo", at(TODAY, 11), "m_alex", null, ["Finance"], 1, at(-2), at(-1), { divisionId: "d_commercial", ownerConfirmed: true, deadlineAgreed: true, blocker: "Menunggu breakdown final dari Priya", escalated: true }),
     task("t_3", "Prepare Training Material Host Academy", "Module 4 slides and the checkpoint 3 rubric draft.", "medium", "todo", at(TODAY, 13), "m_rizky", "p_host", ["Training"], 2, at(-2), at(-1)),
     task("t_4", "Approve Budget Ads June", "Review the $820 breakdown attached to Priya's request.", "medium", "in_review", at(TODAY, 15), "m_alex", null, ["Marketing"], 3, at(-1), at(0)),
     task("t_5", "Update SOP Live Streaming", "Refresh the lighting and audio checklist after the studio change.", "low", "todo", at(TODAY + 1, 12), "m_dinda", "p_sop", ["SOP", "Ops"], 4, at(-4), at(-2)),
-    task("t_6", "Design AI Automation Flow v2", "Retry loop with exponential backoff applied to every scheduled workflow.", "high", "in_progress", at(4, 17), "m_alex", "p_ai", ["AI", "Automation"], 5, at(-5), at(0)),
+    task("t_6", "Design AI Automation Flow v2", "Retry loop with exponential backoff applied to every scheduled workflow.", "high", "in_progress", at(4, 17), "m_alex", "p_ai", ["AI", "Automation"], 5, at(-5), at(0), { divisionId: "d_engineering", ownerConfirmed: true, deadlineAgreed: true, sourceMeetingId: "mt_ai" }),
     task("t_7", "Sync with Marketing on Campaign Report", "Final numbers for the May campaign.", "medium", "done", at(4, 10), "m_fauzan", null, ["Marketing"], 6, at(-6), at(-1)),
     task("t_8", "Draft Q3 Performance Report", "Pull the quarter's numbers and draft the narrative section.", "medium", "todo", at(7, 12), "m_alex", null, ["Report"], 7, at(-2), at(-2)),
     task("t_9", "Clean up Knowledge Base folders", "Archive stale SOPs and re-file loose meeting notes.", "low", "todo", at(10, 12), "m_rizky", null, ["Knowledge"], 8, at(-1), at(-1)),
@@ -128,25 +165,35 @@
     {
       id: "mt_ai", title: "AI Automation Review", startAt: at(4, 15), durationMin: 60,
       participantIds: ["m_alex", "m_rizky", "m_fauzan"], projectId: "p_ai", status: "recorded",
-      tags: ["AI"], ownerId: "m_alex",
+      tags: ["AI"], ownerId: "m_alex", divisionId: "d_engineering",
+      objective: "Putuskan apakah retry loop siap dirilis dan siapa yang pegang on-call.",
+      decisionsNeeded: ["Rilis di sprint depan atau tunda?", "Siapa owner on-call di luar jam kerja?"],
+      preReads: [{ name: "Retry Loop Prototype — spec.pdf", url: "#" }],
+      sop: { room: true, materials: true, reportWa: true, photos: false, recording: true, archive: true },
       summary: "Rizky walked through the retry-loop prototype for the Daily Report workflow, which recovers automatically when the source sheet updates late. The team agreed to ship it behind a feature flag next sprint and monitor failure rates for two weeks before full rollout.",
-      highlights: [
-        { kind: "decision", text: "Ship the retry loop behind a feature flag next sprint." },
-        { kind: "discussion", text: "Backoff schedule should escalate after 3 failed attempts." },
-        { kind: "opportunity", text: "Pattern could generalize to all scheduled automations." },
+      // The five-point MoM from the onboarding doc: a reasoning chain, read top
+      // to bottom. What is true → what we are still guessing → what was put on
+      // the table → what was settled → what happens next.
+      fact: [
+        "Daily Report workflow gagal 4,2% dari total eksekusi bulan ini.",
+        "Prototype retry sudah jalan di staging sejak 2 minggu lalu.",
       ],
-      lowlights: [
-        "No monitoring dashboard yet for retry failure rates.",
-        "Unclear who owns on-call if escalation triggers after hours.",
+      assumption: [
+        "Penyebab utama kegagalan adalah source sheet telat update, bukan bug di workflow.",
+        "3 kali retry cukup untuk menutup mayoritas kasus.",
+      ],
+      proposal: [
+        "Rilis di balik feature flag, pantau 2 minggu sebelum rollout penuh.",
+        "Eskalasi otomatis ke on-call setelah 3 percobaan gagal.",
       ],
       decisions: [
-        { time: "00:14:02", text: "Ship the retry loop behind a feature flag." },
-        { time: "00:22:47", text: "Monitor for two weeks before full rollout." },
-        { time: "00:31:10", text: "Generalize pattern to other scheduled workflows later this quarter." },
+        { time: "00:14:02", text: "Rilis retry loop di balik feature flag sprint depan." },
+        { time: "00:22:47", text: "Pantau 2 minggu sebelum rollout penuh." },
+        { time: "00:31:10", text: "Pola ini digeneralisasi ke workflow terjadwal lain kuartal ini." },
       ],
       openQuestions: [
-        "Who owns on-call for after-hours escalations?",
-        "Should the backoff delay be configurable per workflow?",
+        "Siapa owner on-call untuk eskalasi di luar jam kerja?",
+        "Apakah delay backoff perlu bisa diatur per workflow?",
       ],
       actionItems: [
         { id: "ai_1", text: "Implement feature flag for retry loop", ownerId: "m_rizky", priority: "high", dueAt: at(4), done: false, convertedTaskId: null },
@@ -163,19 +210,24 @@
     {
       id: "mt_roadmap", title: "Product Roadmap Sync — Q3 Planning", startAt: at(4, 10), durationMin: 42,
       participantIds: ["m_alex", "m_rizky", "m_fauzan", "m_priya", "m_dinda"], projectId: "p_dashboard",
-      status: "processed", tags: ["Roadmap"], ownerId: "m_alex",
+      status: "processed", tags: ["Roadmap"], ownerId: "m_alex", divisionId: "",
+      objective: "Kunci prioritas Q3 dan bereskan tabrakan bandwidth engineering.",
+      decisionsNeeded: ["Budget influencer Q3 disetujui berapa?", "Automation ditunda atau jalan paralel?"],
+      preReads: [{ name: "Q3 Roadmap Draft.pdf", url: "#" }, { name: "Dashboard MVP status.xlsx", url: "#" }],
+      sop: { room: true, materials: true, reportWa: true, photos: true, recording: true, archive: true },
       summary: "The team reviewed Q3 roadmap priorities, focusing on the AI Automation System and Dashboard Development workstreams. Alex opened with a recap of Q2 outcomes, noting the Host Academy launch landed on time and the dashboard MVP is at 60% completion.\n\nRizky raised concerns about engineering bandwidth given two concurrent workstreams, proposing to push the AI Automation rollout by two weeks to protect dashboard quality. The group agreed this tradeoff was acceptable given dashboard is customer-facing.\n\nBudget for the influencer campaign was approved at $3,500, contingent on Priya sharing final creator list by Friday. Action items were assigned across the team with most due within the next week.",
-      highlights: [
-        { kind: "decision", text: "Influencer campaign budget of $3,500 approved for Q3." },
-        { kind: "discussion", text: "Dashboard MVP is at 60% and on track for end of Q3." },
-        { kind: "opportunity", text: "Bundling Host Academy certification with the dashboard launch could drive adoption." },
-        { kind: "risk", text: "Engineering bandwidth is tight across two concurrent workstreams." },
+      fact: [
+        "Host Academy rilis tepat waktu di Q2.",
+        "Dashboard MVP di angka 60%.",
+        "Dua workstream jalan paralel dengan tim engineering yang sama.",
       ],
-      lowlights: [
-        "Automation workflow test coverage is still incomplete going into launch.",
-        "No confirmed mentor for the advanced Host Academy track yet.",
-        "Creator list for the influencer campaign has not been finalized.",
-        "Unclear whether legal has reviewed the updated brand partnership terms.",
+      assumption: [
+        "Dashboard lebih mendesak karena customer-facing.",
+        "Menunda automation 2 minggu tidak menggeser komitmen ke pihak lain.",
+      ],
+      proposal: [
+        "Tunda rollout AI Automation 2 minggu.",
+        "Setujui budget influencer $3.500 dengan syarat creator list masuk Jumat.",
       ],
       decisions: [
         { time: "00:11:20", text: "Influencer campaign budget approved at $3,500." },
@@ -207,32 +259,45 @@
     {
       id: "mt_marketing", title: "Meeting with Marketing Team", startAt: at(4, 9), durationMin: 45,
       participantIds: ["m_alex", "m_rizky", "m_priya"], projectId: null, status: "recorded",
-      tags: ["Marketing"], ownerId: "m_alex",
+      tags: ["Marketing"], ownerId: "m_alex", divisionId: "d_commercial",
+      objective: "Sepakati kalender kampanye Q3 dan alokasi budget per channel.",
+      decisionsNeeded: [], preReads: [],
+      sop: { room: true, materials: true, reportWa: true, photos: false, recording: true, archive: false },
       summary: "Discussed the Q3 campaign calendar, budget allocation across channels, and the upcoming Host Academy promo push.",
-      highlights: [], lowlights: [], decisions: [], openQuestions: [], actionItems: [], transcript: [],
+      fact: [], assumption: [], proposal: [], decisions: [], openQuestions: [], actionItems: [], transcript: [],
       keywords: ["Marketing", "Q3"], language: "English", sentiment: "Neutral", aiConfidence: 88,
     },
     {
       id: "mt_host", title: "Host Academy Checkpoint", startAt: at(TODAY, 13), durationMin: 60,
       participantIds: ["m_alex", "m_fauzan", "m_dinda"], projectId: "p_host", status: "recorded",
-      tags: ["Training"], ownerId: "m_fauzan",
+      tags: ["Training"], ownerId: "m_fauzan", divisionId: "d_content",
+      objective: "Review checkpoint 2 dan putuskan perlu re-shoot atau tidak.",
+      decisionsNeeded: ["Re-shoot checkpoint 2 atau lanjut dengan footage yang ada?"],
+      preReads: [],
+      sop: { room: true, materials: true, reportWa: false, photos: false, recording: true, archive: false },
       summary: "Checkpoint 2 review. Footage needs a re-shoot — lighting was too dark in the studio.",
-      highlights: [], lowlights: [], decisions: [], openQuestions: [], actionItems: [], transcript: [],
+      fact: ["Lighting studio di bawah standar pada sesi checkpoint 2."],
+      assumption: [], proposal: [], decisions: [], openQuestions: [], actionItems: [], transcript: [],
       keywords: ["Host Academy", "Checkpoint"], language: "English", sentiment: "Neutral", aiConfidence: 90,
     },
     {
       id: "mt_budget", title: "Budget Review — June Ads", startAt: at(2, 11), durationMin: 30,
       participantIds: ["m_alex", "m_priya"], projectId: null, status: "recorded",
-      tags: ["Finance"], ownerId: "m_priya",
+      tags: ["Finance"], ownerId: "m_priya", divisionId: "d_commercial",
+      objective: "Kunci angka belanja iklan Juni sebelum tenggat approval.",
+      decisionsNeeded: [], preReads: [{ name: "Budget_Breakdown_June.pdf", url: "#" }],
+      sop: { room: true, materials: true, reportWa: true, photos: false, recording: false, archive: true },
       summary: "Reviewed the June ad spend breakdown ahead of the approval deadline.",
-      highlights: [], lowlights: [], decisions: [], openQuestions: [], actionItems: [], transcript: [],
+      fact: [], assumption: [], proposal: [], decisions: [], openQuestions: [], actionItems: [], transcript: [],
       keywords: ["Budget", "Ads"], language: "English", sentiment: "Neutral", aiConfidence: 85,
     },
     {
       id: "mt_standup", title: "Weekly Standup", startAt: at(0, 9), durationMin: 20,
       participantIds: ["m_alex", "m_rizky", "m_fauzan"], projectId: null, status: "no_recording",
-      tags: ["Ops"], ownerId: "m_alex", summary: "",
-      highlights: [], lowlights: [], decisions: [], openQuestions: [], actionItems: [], transcript: [],
+      tags: ["Ops"], ownerId: "m_alex", divisionId: "", summary: "",
+      objective: "", decisionsNeeded: [], preReads: [],
+      sop: { room: false, materials: false, reportWa: false, photos: false, recording: false, archive: false },
+      fact: [], assumption: [], proposal: [], decisions: [], openQuestions: [], actionItems: [], transcript: [],
       keywords: [], language: "English", sentiment: "Neutral", aiConfidence: 0,
     },
   ];
@@ -291,8 +356,97 @@
     { id: "i_6", title: "Weekly AI briefing digest", text: "Summarize the week's meetings, tasks, and decisions every Friday.", status: "draft", authorId: "m_alex", createdAt: at(-2) },
   ];
 
+  /**
+   * Decisions the CEO has to make. Most carry no number at all — "safety stock
+   * cukup atau percepat lead time?" is a decision, not a purchase — so `amount`
+   * is optional and `options` carries the actual choice on the table.
+   *
+   *   kind     "spend" when there's a number, "decision" otherwise
+   *   context  the background the CEO needs to decide without a meeting
+   *   options  what they're choosing between; empty means a plain yes/no
+   */
   var approvals = [
-    { id: "ap_1", title: "Budget Ads June", description: "June ads budget so we can lock in the campaign slot before Friday.", amount: 820, currency: "USD", requesterId: "m_priya", approverId: "m_alex", state: "pending", requestedAt: at(TODAY, 9, 12), decidedAt: null },
+    {
+      id: "ap_1", title: "Budget Ads Juni", kind: "spend",
+      description: "Budget iklan Juni supaya slot kampanye terkunci sebelum Jumat.",
+      context: "Slot inventory di channel utama habis kalau lewat Jumat. Belanja Mei terpakai 92% dengan ROAS 3,1.",
+      options: [], amount: 820, currency: "USD",
+      requesterId: "m_priya", approverId: "m_alex", divisionId: "d_commercial",
+      state: "pending", requestedAt: at(TODAY, 9, 12), decidedAt: null, decisionNote: "",
+    },
+    {
+      id: "ap_2", title: "Safety stock vs percepat lead time supplier", kind: "decision",
+      description: "PO Batch 12 berisiko mundur. Perlu keputusan arah sebelum Kamis.",
+      context: "Lead time supplier saat ini 21 hari. Stok aman menutup 12 hari ke depan. Mempercepat lead time menambah biaya ~8% per unit.",
+      options: ["Andalkan safety stock, terima risiko kosong 9 hari", "Percepat lead time, biaya naik 8%"],
+      amount: null, currency: "",
+      requesterId: "m_dinda", approverId: "m_alex", divisionId: "d_ops",
+      state: "pending", requestedAt: at(TODAY, 8, 5), decidedAt: null, decisionNote: "",
+    },
+    {
+      id: "ap_3", title: "Mentor advanced track Host Academy", kind: "decision",
+      description: "Butuh nama mentor supaya jadwal advanced track bisa dikunci.",
+      context: "Dua kandidat internal, keduanya sudah pegang beban lain. Opsi ketiga: tunda ke kuartal depan.",
+      options: ["Tunjuk mentor internal", "Rekrut eksternal", "Tunda ke kuartal depan"],
+      amount: null, currency: "",
+      requesterId: "m_fauzan", approverId: "m_alex", divisionId: "d_content",
+      state: "pending", requestedAt: at(TODAY - 1, 14), decidedAt: null, decisionNote: "",
+    },
+  ];
+
+  /**
+   * The standard messages the role sends over and over. Kept as data so the
+   * wording stays consistent no matter who is covering the desk that week.
+   * Placeholders in [brackets] are filled in before sending.
+   */
+  var templates = [
+    {
+      id: "tpl_weekly", name: "Weekly Division Review", kind: "invite",
+      subject: "[Weekly Review] [Divisi] — [Hari], [Tanggal], [Jam] WIB",
+      body:
+        "Assalamualaikum / selamat siang Tim,\n\nMengundang rekan-rekan untuk Weekly Division Review:\n\n" +
+        "- Hari/Tanggal: [Hari, Tanggal]\n- Waktu: [Jam] WIB\n- Lokasi/Link: [Zoom link / Ruang Meeting]\n" +
+        "- Peserta: [nama-nama PIC]\n- Agenda: Review progress mingguan, closure task overdue, blocker lintas fungsi\n" +
+        "- Yang perlu disiapkan: Update status task per PIC (link ClickUp), data minggu ini\n\n" +
+        "Mohon konfirmasi kehadiran. Terima kasih.\n[Nama] — Executive PM, Antarestar",
+    },
+    {
+      id: "tpl_urgent", name: "Cross Functional Urgent", kind: "invite",
+      subject: "[URGENT] Koordinasi [Divisi A] x [Divisi B] — [Topik]",
+      body:
+        "Halo [nama-nama],\n\nAda isu yang butuh keputusan cepat terkait [ringkas masalah].\n\nMengundang sync singkat:\n\n" +
+        "- Waktu: Hari ini, [Jam] WIB, durasi 30 menit\n- Link: [Zoom/Meet]\n- Konteks: [1–2 kalimat masalah]\n" +
+        "- Keputusan yang dicari: [pertanyaan keputusan]\n- Data pendukung: [link dashboard/sheet]\n\n" +
+        "Kalau ada halangan mohon infokan PIC pengganti. Terima kasih.",
+    },
+    {
+      id: "tpl_external", name: "External / Partner Meeting", kind: "invite",
+      subject: "Meeting Antarestar x [Nama Partner] — [Hari], [Tanggal], [Jam] WIB",
+      body:
+        "Yth. Bapak/Ibu [Nama],\n\nTerima kasih atas waktunya. Berikut detail pertemuan kita:\n\n" +
+        "- Hari/Tanggal: [Hari, Tanggal]\n- Waktu: [Jam] WIB (durasi ±60 menit)\n- Lokasi/Link: [alamat kantor / Zoom link]\n" +
+        "- Agenda: [3 poin utama pembahasan]\n- Peserta dari Antarestar: Faiz Daffa (CEO), [nama lain]\n" +
+        "- Materi/pre-read: [lampiran, jika ada]\n\n" +
+        "Mohon konfirmasi kehadirannya. Jika ada perubahan jadwal, silakan hubungi saya di [kontak].\n\n" +
+        "Hormat kami,\n[Nama] — Executive PM, Antarestar",
+    },
+    {
+      id: "tpl_mbr", name: "Monthly Business Review", kind: "invite",
+      subject: "[Monthly Business Review] [Bulan] — [Hari], [Tanggal], [Jam] WIB",
+      body:
+        "Bismillah, Assalamualaikum Wr. Wb.\n\nMengundang Bapak/Ibu untuk Monthly Business Review bulan [Bulan]:\n\n" +
+        "- Hari/Tanggal: [Hari, Tanggal]\n- Waktu: [Jam] WIB\n- Lokasi: [Ruang Meeting Utama]\n" +
+        "- Agenda: Progress strategic initiatives, kesehatan ritme meeting & closure, bottleneck sistem, prioritas bulan berikutnya\n" +
+        "- Pre-read: [link dashboard/report — dikirim H-1]\n\n" +
+        "Mohon kesediaan hadir tepat waktu. Terima kasih.",
+    },
+    {
+      id: "tpl_mom", name: "Meeting Notes (MoM)", kind: "mom",
+      subject: "[MoM] [Topik] — [Tanggal]",
+      body:
+        "MEETING NOTES\nTopik: [topik]\nTanggal/Waktu: [tanggal, jam]\nPeserta: [nama-nama]\nTujuan: [objektif]\n\n" +
+        "FACT:\n- \n\nASSUMPTION:\n- \n\nPROPOSAL:\n- \n\nDECISION:\n- \n\nACTION ITEMS:\n- [ ] [tugas] — [PIC] — [deadline]",
+    },
   ];
 
   var threads = [
@@ -309,27 +463,10 @@
   var notifications = [
     { id: "nt_1", actorId: "m_priya", actorName: "Priya S.", text: "requested your approval on Budget Ads June.", kind: "approval", read: false, createdAt: at(TODAY, 9, 12), href: "approvals.html" },
     { id: "nt_2", actorId: "m_rizky", actorName: "Rizky P.", text: "mentioned you in Host Academy Curriculum v3.", kind: "mention", read: false, createdAt: at(TODAY, 8, 40), href: "note.html?id=n_curriculum" },
-    { id: "nt_3", actorId: null, actorName: "Workflow", text: "Daily Report Digest failed to run this morning.", kind: "workflow", read: true, createdAt: at(TODAY, 7), href: "automations.html" },
+    { id: "nt_3", actorId: "m_dinda", actorName: "Dinda K.", text: "meminta keputusan soal safety stock vs lead time supplier.", kind: "approval", read: true, createdAt: at(TODAY, 8, 5), href: "approvals.html" },
     { id: "nt_4", actorId: null, actorName: "System", text: "reminder: Follow up Budget Approval is due at 11:00.", kind: "task", read: true, createdAt: at(TODAY, 7), href: "tasks.html" },
     { id: "nt_5", actorId: "m_fauzan", actorName: "Fauzan M.", text: "updated the task Approve Budget Ads June.", kind: "task", read: true, createdAt: at(TODAY - 1, 16, 20), href: "tasks.html" },
     { id: "nt_6", actorId: "m_dinda", actorName: "Dinda K.", text: "invited you to Meeting with CEO.", kind: "meeting", read: true, createdAt: at(TODAY - 1, 9), href: "calendar.html" },
-  ];
-
-  var workflows = [
-    { id: "w_1", name: "Daily Report Digest", trigger: "Every day 07:00", enabled: true, state: "failed", executions: 128, lastRunAt: at(TODAY, 7), icon: "rocket", iconBg: "#fff1f2", iconColor: "#e11d48" },
-    { id: "w_2", name: "Task Reminder Push", trigger: "Due date − 1 hour", enabled: true, state: "active", executions: 892, lastRunAt: at(TODAY, 9, 20), icon: "bell", iconBg: "#ecfdf5", iconColor: "#059669" },
-    { id: "w_3", name: "Meeting Notes Summarizer", trigger: "On meeting end", enabled: true, state: "active", executions: 214, lastRunAt: at(TODAY, 9), icon: "message-square", iconBg: "#f0f9ff", iconColor: "#0284c7" },
-    { id: "w_4", name: "Weekly Project Digest", trigger: "Every Monday 08:00", enabled: true, state: "active", executions: 12, lastRunAt: at(0, 8), icon: "briefcase", iconBg: "#f5f3ff", iconColor: "#7c3aed" },
-    { id: "w_5", name: "Overdue Task Escalation", trigger: "On overdue", enabled: false, state: "paused", executions: 0, lastRunAt: null, icon: "crosshair", iconBg: "#f8fafc", iconColor: "#64748b" },
-  ];
-
-  var workflowRuns = [
-    { id: "wr_1", workflowId: "w_1", workflowName: "Daily Report Digest", result: "failed", ranAt: at(TODAY, 7), message: "Source sheet had not updated at trigger time." },
-    { id: "wr_2", workflowId: "w_2", workflowName: "Task Reminder Push", result: "success", ranAt: at(TODAY, 9, 20), message: "3 reminders sent." },
-    { id: "wr_3", workflowId: "w_3", workflowName: "Meeting Notes Summarizer", result: "success", ranAt: at(TODAY, 9), message: "Summarised 1 meeting." },
-    { id: "wr_4", workflowId: "w_2", workflowName: "Task Reminder Push", result: "success", ranAt: at(TODAY, 8), message: "1 reminder sent." },
-    { id: "wr_5", workflowId: "w_1", workflowName: "Daily Report Digest", result: "success", ranAt: at(TODAY - 1, 7), message: "Digest delivered." },
-    { id: "wr_6", workflowId: "w_4", workflowName: "Weekly Project Digest", result: "success", ranAt: at(0, 8), message: "Digest delivered to 5 recipients." },
   ];
 
   var folders = [
@@ -360,6 +497,7 @@
   WOS.seed = function () {
     return WOS.clone({
       members: members,
+      divisions: divisions,
       tasks: tasks,
       projects: projects,
       milestones: milestones,
@@ -370,11 +508,10 @@
       threads: threads,
       approvals: approvals,
       notifications: notifications,
-      workflows: workflows,
-      workflowRuns: workflowRuns,
       folders: folders,
       files: files,
       comments: comments,
+      templates: templates,
     });
   };
 })(window.WOS);

@@ -111,6 +111,42 @@ both in the Vercel project settings before switching `config.js` to `"api"`.
 Steps 1–5 all work while still on `"local"`, which is the point: fill and
 verify the spreadsheet first, and only flip the switch once it looks right.
 
+### Google Calendar
+
+The calendar reads and writes the real Google Calendar of the account that
+owns the Apps Script deployment. There is no second OAuth flow: the script
+already runs as that account, so `CalendarApp` is available to it directly,
+and the `SECRET` guarding the endpoint stays the only credential involved.
+
+Turning it on:
+
+1. Paste the current `Code.gs` into the Apps Script editor and **Deploy →
+   Manage deployments → edit → Deploy**.
+2. Run any calendar function once from the editor (`calendarList` is
+   harmless). Google will prompt to authorise the **Calendar** scope, which
+   the previous deployment never needed — the endpoint returns
+   `unauthorized`-style errors until this is granted.
+3. Set `calendarSource: "google"` in `assets/js/config.js`.
+
+Google is the source of truth while this is on. Nothing is mirrored into the
+spreadsheet, so the two can't drift; the `events` collection is only used
+when `calendarSource` is `"sheets"`.
+
+Two app concepts have no native Google field and are stored as event tags:
+`wosLabel` (the colour vocabulary) and `wosMeetingId` (the link from a
+calendar entry to its minutes). Labels are also written to Google's own event
+colour, so an event still looks right inside Google Calendar. Editing the
+colour there changes the label here.
+
+Events are fetched per visible window rather than all at once, so moving to
+another week is a request. Writes go straight to Google and invalidate the
+cached windows.
+
+**Not covered:** creating Google Meet links, which needs the Advanced
+Calendar Service rather than `CalendarApp`, and editing a whole recurring
+series — saving a repeating event changes that occurrence only, which the
+edit dialog says.
+
 > **`apps-script/Code.gs` does not deploy from git.** It's version-controlled
 > here for review and history, but the copy that actually runs lives in
 > Google's editor. After changing it, paste the new contents into the Apps

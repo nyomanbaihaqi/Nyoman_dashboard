@@ -153,6 +153,10 @@
     return (
       '<div class="card">' +
       '<h2 class="card__title">' + esc(t("settings.notificationPrefs")) + "</h2>" +
+      // Nothing delivers notifications yet — these toggles only record a
+      // preference. Saying so is better than a switch that looks live and
+      // silently does nothing.
+      '<p class="text-label muted" style="margin-top:4px">' + esc(t("settings.notifPending")) + "</p>" +
       rows
         .map(function (row) {
           return (

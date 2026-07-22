@@ -34,6 +34,26 @@ WOS.config = {
   currency: "USD",
 
   /**
+   * Where the calendar reads and writes.
+   *
+   *   "sheets" — the `events` collection, like every other screen.
+   *   "google" — the real Google Calendar, through the same Apps Script
+   *              endpoint. Requires backend "api", and the script has to be
+   *              re-authorised once for the Calendar scope (see README).
+   *
+   * Google is the source of truth when this is on: creating an event here
+   * creates it there, and an event moved in Google shows up here. Nothing is
+   * mirrored into the spreadsheet, so there is only ever one schedule.
+   */
+  calendarSource: "google",
+
+  /**
+   * Which calendars to read. Empty means the account's default calendar
+   * only — the usual case. Add ids from Settings once more than one matters.
+   */
+  calendarIds: [],
+
+  /**
    * Which member the app renders as, until Google sign-in is wired up.
    * Falls back to the workspace owner when this id isn't found.
    */
@@ -43,6 +63,7 @@ WOS.config = {
 /** Collections, one per sheet tab. Order matters only for setup. */
 WOS.COLLECTIONS = [
   "members",
+  "divisions",
   "tasks",
   "projects",
   "milestones",
@@ -53,10 +74,14 @@ WOS.COLLECTIONS = [
   "threads",
   "approvals",
   "notifications",
-  "workflows",
-  "workflowRuns",
   "folders",
   "files",
   "comments",
-  "prompts",
+  "templates",
 ];
+
+/**
+ * The six-step per-meeting ritual from the PA job description. Stored as ids
+ * so a meeting's progress survives a change of wording or language.
+ */
+WOS.MEETING_SOP = ["room", "materials", "reportWa", "photos", "recording", "archive"];

@@ -498,14 +498,24 @@
     .then(function (main) {
       page = main;
       page.innerHTML = ui.skeletonRows(4, 90);
-      return WOS.db.loadAll([
-        "members", "tasks", "projects", "events", "notes", "approvals",
+      // Home only shows today's schedule, so it asks the calendar for today
+      // rather than the whole `events` collection — same source the Calendar
+      // page reads, so the two can't disagree.
+      var dayStart = new Date();
+      dayStart.setHours(0, 0, 0, 0);
+      var dayEnd = new Date(dayStart);
+      dayEnd.setDate(dayEnd.getDate() + 1);
+
+      return Promise.all([
+        WOS.db.loadAll(["members", "tasks", "projects", "notes", "approvals"]),
+        WOS.gcal.range(dayStart, dayEnd),
       ]);
     })
-    .then(function (loaded) {
-      data = loaded;
-      data.memberById = WOS.indexById(loaded.members);
-      data.projectById = WOS.indexById(loaded.projects);
+    .then(function (results) {
+      data = results[0];
+      data.events = results[1];
+      data.memberById = WOS.indexById(data.members);
+      data.projectById = WOS.indexById(data.projects);
       render();
       bind();
     })

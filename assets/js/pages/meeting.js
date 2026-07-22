@@ -57,40 +57,189 @@
     return '<h2 class="section-title" style="margin-top:20px">' + esc(label) + "</h2>";
   }
 
-  function mainColumn() {
-    if (!meeting.summary && !meeting.highlights.length) {
-      return '<div class="card">' + ui.empty(t("meetings.noSummary"), null, null, "bot") + "</div>";
-    }
+  /* ── MoM: the five-point chain ──────────────────────────────
+     Fact → Assumption → Proposal → Decision → Action, read top to
+     bottom. The order is the argument: what is true, what we are
+     still guessing, what was put forward, what was settled, what
+     happens next. Rendering them as one numbered chain rather than
+     five unrelated cards is what makes that legible.
+     ────────────────────────────────────────────────────────── */
 
-    var html = '<h2 class="section-title">' + esc(t("meetings.executiveSummary")) + "</h2>" +
-      '<div class="card"><p class="text-sm" style="line-height:1.75;color:var(--text-body)">' + esc(meeting.summary) + "</p></div>";
+  var MOM_STEPS = [
+    { key: "fact", tone: "var(--sky-600)", tint: "#f0f9ff" },
+    { key: "assumption", tone: "var(--amber-600)", tint: "#fffbeb" },
+    { key: "proposal", tone: "var(--antar-purple)", tint: "var(--antar-purple-light)" },
+    { key: "decision", tone: "var(--emerald-600)", tint: "#ecfdf5" },
+  ];
 
-    if (meeting.highlights.length) {
-      html += sectionTitle(t("meetings.highlights")) +
-        '<div class="grid grid--md-2">' +
-        meeting.highlights
-          .map(function (h) {
-            var style = ui.HIGHLIGHT_STYLE[h.kind];
-            return (
-              '<div class="highlight"><span class="highlight__stripe" style="background:' + style.stripe + '"></span>' +
-              '<div class="highlight__kind" style="color:' + style.color + '">' + esc(t("meetings.highlight." + h.kind)) + "</div>" +
-              '<p class="highlight__text">' + esc(h.text) + "</p></div>"
-            );
-          })
-          .join("") +
-        "</div>";
-    }
+  function momSection() {
+    var html =
+      '<div class="spread" style="margin-bottom:10px">' +
+      '<h2 class="section-title" style="margin:0">' + esc(t("mom.title")) + "</h2>" +
+      '<button type="button" class="btn btn--outline btn--sm" data-copy-mom>' +
+      icon("message-square", 13) + esc(t("mom.copy")) + "</button></div>" +
+      '<div class="card"><div class="stack">';
 
-    if (meeting.lowlights.length) {
-      html += sectionTitle(t("meetings.lowlights")) +
-        '<div class="card card--flush"><div style="padding:0 20px">' +
-        meeting.lowlights
-          .map(function (l) {
-            return '<div class="row" style="align-items:flex-start">' + icon("crosshair", 13, { color: "#e11d48" }) +
-              '<span class="text-sm" style="color:var(--text-body)">' + esc(l) + "</span></div>";
-          })
-          .join("") +
+    MOM_STEPS.forEach(function (step, index) {
+      // `decision` holds {time,text} objects; the other three are plain strings.
+      var items =
+        step.key === "decision"
+          ? (meeting.decisions || []).map(function (d) {
+              return d.text;
+            })
+          : meeting[step.key] || [];
+
+      html +=
+        '<div style="display:flex;gap:14px">' +
+        '<div style="display:flex;flex-direction:column;align-items:center;flex:none">' +
+        '<span style="width:26px;height:26px;border-radius:50%;flex:none;display:flex;align-items:center;' +
+        "justify-content:center;font-size:11px;font-weight:700;background:" + step.tint + ";color:" + step.tone + '">' +
+        (index + 1) + "</span>" +
+        (index < MOM_STEPS.length - 1 ? '<span style="width:1.5px;flex:1;margin-top:4px;background:var(--border-subtle)"></span>' : "") +
+        "</div>" +
+        '<div style="flex:1;min-width:0;padding-bottom:' + (index < MOM_STEPS.length - 1 ? "18px" : "0") + '">' +
+        '<p class="eyebrow" style="color:' + step.tone + '">' + esc(t("mom." + step.key)) + "</p>" +
+        '<p class="text-label faint" style="margin-top:1px">' + esc(t("mom." + step.key + ".hint")) + "</p>" +
+        (items.length
+          ? '<ul style="margin-top:8px;display:flex;flex-direction:column;gap:6px">' +
+            items
+              .map(function (text) {
+                return (
+                  '<li style="display:flex;gap:8px;font-size:13.5px;line-height:1.55;color:var(--text-body)">' +
+                  '<span style="color:' + step.tone + ';flex:none">•</span><span>' + esc(text) + "</span></li>"
+                );
+              })
+              .join("") +
+            "</ul>"
+          : '<p class="text-sm muted" style="margin-top:8px">' + esc(t("mom.empty")) + "</p>") +
         "</div></div>";
+    });
+
+    return html + "</div></div>";
+  }
+
+  /** MoM as plain text, in the handbook's layout, ready to paste into WA. */
+  function momText() {
+    var participants = (meeting.participantIds || []).map(function (id) {
+      var m = data.memberById.get(id);
+      return m ? m.name : "—";
+    });
+
+    var lines = [];
+    lines.push("*MEETING NOTES*");
+    lines.push("Topik: " + meeting.title);
+    lines.push("Tanggal/Waktu: " + fmt.fullDate(meeting.startAt) + ", " + fmt.time(meeting.startAt));
+    lines.push("Peserta: " + (participants.join(", ") || "—"));
+    if (meeting.objective) lines.push("Tujuan: " + meeting.objective);
+    lines.push("");
+
+    MOM_STEPS.forEach(function (step) {
+      var items =
+        step.key === "decision"
+          ? (meeting.decisions || []).map(function (d) {
+              return d.text;
+            })
+          : meeting[step.key] || [];
+      lines.push("*" + t("mom." + step.key).toUpperCase() + ":*");
+      if (!items.length) lines.push("-");
+      items.forEach(function (text) {
+        lines.push("- " + text);
+      });
+      lines.push("");
+    });
+
+    lines.push("*ACTION ITEMS:*");
+    if (!(meeting.actionItems || []).length) {
+      lines.push("-");
+    } else {
+      meeting.actionItems.forEach(function (a) {
+        var owner = data.memberById.get(a.ownerId);
+        lines.push(
+          "- [" + (a.done ? "x" : " ") + "] " + a.text +
+            " — " + (owner ? owner.name : "—") +
+            " — " + (a.dueAt ? fmt.dayMonth(a.dueAt) : "tanpa tenggat"),
+        );
+      });
+    }
+
+    return lines.join("\n");
+  }
+
+  /* ── Meeting SOP ───────────────────────────────────────────── */
+
+  function sopSection() {
+    var sop = meeting.sop || {};
+    var steps = WOS.MEETING_SOP;
+    var done = steps.filter(function (id) {
+      return sop[id];
+    }).length;
+
+    return (
+      '<div class="spread" style="margin-bottom:10px">' +
+      '<h2 class="section-title" style="margin:0">' + esc(t("meetings.sop")) + "</h2>" +
+      '<span class="text-label ' + (done === steps.length ? "" : "muted") + '" style="' +
+      (done === steps.length ? "color:var(--emerald-600);font-weight:700" : "") + '">' +
+      esc(t("meetings.sopProgress", { done: done, total: steps.length })) + "</span></div>" +
+      '<div class="card"><div style="margin-bottom:12px">' + ui.progress(Math.round((done / steps.length) * 100), "var(--emerald-500)") + "</div>" +
+      steps
+        .map(function (id) {
+          return (
+            '<div class="row" style="padding:9px 0">' +
+            ui.checkbox(!!sop[id], t("meetings.sop." + id), { "sop-toggle": id }) +
+            '<span class="text-sm" style="color:' + (sop[id] ? "var(--slate-400);text-decoration:line-through" : "var(--text-body)") + '">' +
+            esc(t("meetings.sop." + id)) + "</span></div>"
+          );
+        })
+        .join("") +
+      "</div>"
+    );
+  }
+
+  function prepSection() {
+    var needed = meeting.decisionsNeeded || [];
+    var preReads = meeting.preReads || [];
+    if (!meeting.objective && !needed.length && !preReads.length) return "";
+
+    return (
+      '<div class="card">' +
+      (meeting.objective
+        ? '<p class="eyebrow">' + esc(t("meetings.objective")) + "</p>" +
+          '<p class="text-sm" style="margin-top:6px;color:var(--text-body);line-height:1.6">' + esc(meeting.objective) + "</p>"
+        : "") +
+      (needed.length
+        ? '<p class="eyebrow" style="margin-top:16px">' + esc(t("meetings.decisionsNeeded")) + "</p>" +
+          '<ul style="margin-top:6px;display:flex;flex-direction:column;gap:5px">' +
+          needed
+            .map(function (q) {
+              return (
+                '<li style="display:flex;gap:8px;font-size:13.5px;color:var(--text-body)">' +
+                icon("target", 13, { color: "var(--amber-600)" }) + "<span>" + esc(q) + "</span></li>"
+              );
+            })
+            .join("") +
+          "</ul>"
+        : "") +
+      '<p class="eyebrow" style="margin-top:16px">' + esc(t("meetings.preRead")) + "</p>" +
+      (preReads.length
+        ? preReads
+            .map(function (p) {
+              return (
+                '<a class="row" href="' + esc(p.url || "#") + '">' + icon("paperclip", 14, { color: "var(--slate-400)" }) +
+                '<span class="text-sm grow truncate" style="color:var(--text-body)">' + esc(p.name) + "</span></a>"
+              );
+            })
+            .join("")
+        : '<p class="text-sm muted" style="margin-top:6px">' + esc(t("meetings.noPreRead")) + "</p>") +
+      "</div>"
+    );
+  }
+
+  function mainColumn() {
+    var html = prepSection() + sopSection() + momSection();
+
+    if (meeting.summary) {
+      html += sectionTitle(t("meetings.executiveSummary")) +
+        '<div class="card"><p class="text-sm" style="line-height:1.75;color:var(--text-body)">' + esc(meeting.summary) + "</p></div>";
     }
 
     if (meeting.actionItems.length) {
@@ -115,22 +264,8 @@
         "</div>";
     }
 
-    if (meeting.decisions.length) {
-      html += sectionTitle(t("meetings.decisions")) +
-        '<div class="card">' +
-        meeting.decisions
-          .map(function (d, i) {
-            var isLast = i === meeting.decisions.length - 1;
-            return (
-              '<div class="timeline-list__item">' +
-              '<div class="timeline-list__rail"><span class="timeline-list__dot"></span>' +
-              (isLast ? "" : '<span class="timeline-list__line"></span>') + "</div>" +
-              '<div><p class="text-label faint">' + esc(d.time) + '</p><p class="text-sm" style="margin-top:2px;color:var(--text-body)">' + esc(d.text) + "</p></div></div>"
-            );
-          })
-          .join("") +
-        "</div>";
-    }
+    // Decisions are no longer a section of their own — they are step 4 of the
+    // MoM chain above, where they sit next to the reasoning that produced them.
 
     if (meeting.openQuestions.length) {
       html += sectionTitle(t("meetings.openQuestions")) +
@@ -208,8 +343,28 @@
   }
 
   function bind() {
-    WOS.on(page, "click", "[data-share], [data-export], [data-transcript-search], [data-transcript-copy], [data-ai-chip], [data-ask-meeting]", function () {
+    WOS.on(page, "click", "[data-share], [data-export], [data-transcript-search], [data-ai-chip], [data-ask-meeting]", function () {
       ui.toast(t("mi.aiPending"));
+    });
+
+    WOS.on(page, "click", "[data-copy-mom]", function () {
+      ui.copyText(momText(), "mom.copied");
+    });
+
+    WOS.on(page, "click", "[data-transcript-copy]", function () {
+      var text = meeting.transcript
+        .map(function (line) {
+          return line.time + " " + line.speakerName + ": " + line.text;
+        })
+        .join("\n");
+      ui.copyText(text, "action.copy");
+    });
+
+    WOS.on(page, "click", "[data-sop-toggle]", function (event, target) {
+      var step = target.dataset.sopToggle;
+      var next = Object.assign({}, meeting.sop || {});
+      next[step] = !next[step];
+      WOS.db.update("meetings", meeting.id, { sop: next }).then(refresh);
     });
 
     WOS.on(page, "click", "[data-convert-action]", function (event, target) {
@@ -218,6 +373,8 @@
         return a.id === itemId;
       })[0];
       if (!item || item.convertedTaskId) return;
+
+      var owner = data.memberById.get(item.ownerId);
 
       WOS.db
         .create("tasks", {
@@ -232,6 +389,14 @@
           order: Date.now(),
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
+          // Route to the owner's division, falling back to the meeting's, so
+          // the weekly per-division follow-up can find it.
+          divisionId: (owner && owner.divisionId) || meeting.divisionId || "",
+          ownerConfirmed: false,
+          deadlineAgreed: false,
+          blocker: "",
+          escalated: false,
+          sourceMeetingId: meeting.id,
         })
         .then(function (task) {
           var nextItems = meeting.actionItems.map(function (a) {
