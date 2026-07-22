@@ -497,16 +497,6 @@
     },
   ];
 
-  var threads = [
-    { id: "th_1", fromId: "m_priya", fromName: "Priya S.", subject: "Budget Ads June – needs your approval", preview: "Hi Alex, could you approve the June ads...", body: "Hi Alex, could you approve the June ads budget of $820 so we can lock in the campaign slot before Friday? Breakdown attached below.", kind: "approval", read: false, receivedAt: at(TODAY, 9, 12), attachments: [{ name: "Budget_Breakdown_June.pdf", size: 245760, url: "#" }], approvalId: "ap_1" },
-    { id: "th_2", fromId: "m_rizky", fromName: "Rizky P.", subject: "Host Academy Curriculum v3", preview: "Uploaded the latest version, mind reviewing...", body: "Uploaded the latest version of the curriculum — mind reviewing modules 3 and 4 before the checkpoint?", kind: "mention", read: false, receivedAt: at(TODAY, 8, 40), attachments: [], approvalId: null },
-    { id: "th_3", fromId: "m_fauzan", fromName: "Fauzan M.", subject: "Checkpoint 2 re-shoot", preview: "Video came out too dark, planning a reshoot...", body: "Video came out too dark — planning a reshoot for Thursday. Studio is booked.", kind: "task", read: true, receivedAt: at(TODAY - 1, 16, 20), attachments: [], approvalId: null },
-    { id: "th_4", fromId: null, fromName: "Workflow", subject: "Daily Report Digest failed", preview: "The workflow failed to run at 07:00 this morning...", body: "The workflow failed to run at 07:00 this morning. Source sheet had not updated at trigger time.", kind: "system", read: true, receivedAt: at(TODAY - 1, 7), attachments: [], approvalId: null },
-    { id: "th_5", fromId: "m_dinda", fromName: "Dinda K.", subject: "Meeting with CEO – notes", preview: "Sharing notes from this morning's strategy...", body: "Sharing notes from this morning's strategy session — main takeaway is Q3 priorities are locked.", kind: "mention", read: true, receivedAt: at(0, 11), attachments: [], approvalId: null },
-    { id: "th_6", fromId: "m_priya", fromName: "Marketing Team", subject: "Campaign Report May", preview: "Final numbers are in, campaign beat target...", body: "Final numbers are in — the campaign beat target by 12%.", kind: "system", read: true, receivedAt: at(0, 9, 30), attachments: [], approvalId: null },
-    { id: "th_7", fromId: null, fromName: "System", subject: "Weekly digest is ready", preview: "Your weekly project summary is ready to view...", body: "Your weekly project summary is ready to view.", kind: "system", read: true, receivedAt: at(-1, 8), attachments: [], approvalId: null },
-    { id: "th_8", fromId: "m_alex", fromName: "Alex Rivera", subject: "Reminder: SOP update", preview: "Don't forget to finish the live streaming SOP...", body: "Don't forget to finish the live streaming SOP before the next checkpoint.", kind: "task", read: true, receivedAt: at(-1, 7, 30), attachments: [], approvalId: null },
-  ];
 
 
   var folders = [
@@ -545,7 +535,6 @@
       notes: notes,
       meetings: meetings,
       ideas: ideas,
-      threads: threads,
       approvals: approvals,
       changes: changes,
       folders: folders,

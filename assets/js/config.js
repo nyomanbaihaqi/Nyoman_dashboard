@@ -63,9 +63,10 @@ WOS.config = {
 /**
  * Collections, one per sheet tab. Order matters only for setup.
  *
- * `ideas` and `notifications` were dropped with the screens that read them — every loadAll
- * batches these, so a collection nothing reads is a request nobody needs. The
- * sheet tab and its rows are left alone; this only stops the app fetching it.
+ * `ideas`, `notifications`, `threads`, and `folders` went with the screens that
+ * read them. Every loadAll batches this list, so a collection nothing reads is
+ * a request paid for on each navigation and never looked at. The sheet tabs and
+ * their rows are left alone — this only stops the app fetching them.
  */
 WOS.COLLECTIONS = [
   "members",
@@ -76,10 +77,8 @@ WOS.COLLECTIONS = [
   "events",
   "notes",
   "meetings",
-  "threads",
   "approvals",
   "changes",
-  "folders",
   "files",
   "comments",
   "templates",

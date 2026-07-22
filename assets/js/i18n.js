@@ -15,7 +15,6 @@
   var en = {
     /* Navigation */
     "nav.home": "Home",
-    "nav.inbox": "Inbox",
     "nav.group.personalAssistant": "Personal Assistant",
     "nav.group.projectManager": "Project Manager",
     "nav.group.aiEngineer": "AI Engineer (Tools)",
@@ -424,15 +423,6 @@
     "automations.enabled": "{name} enabled",
     "automations.disabled": "{name} paused",
 
-    /* Notifications & inbox */
-    "inbox.title": "Inbox",
-    "inbox.to": "to you",
-    "inbox.selectThread": "Select a message to read it.",
-    "inbox.empty": "Nothing here.",
-    "inbox.filter.all": "All",
-    "inbox.filter.approvals": "Approvals",
-    "inbox.filter.mentions": "Mentions",
-    "inbox.filter.tasks": "Tasks",
 
     /* Approvals */
     "approvals.title": "Approvals",
@@ -687,7 +677,6 @@
 
   var id = {
     "nav.home": "Beranda",
-    "nav.inbox": "Kotak Masuk",
     "nav.group.personalAssistant": "Asisten Pribadi",
     "nav.group.projectManager": "Manajer Proyek",
     "nav.group.aiEngineer": "AI Engineer (Tools)",
@@ -1082,14 +1071,6 @@
     "automations.result.failed": "Gagal",
     "automations.enabled": "{name} diaktifkan",
     "automations.disabled": "{name} dijeda",
-    "inbox.title": "Kotak Masuk",
-    "inbox.to": "untukmu",
-    "inbox.selectThread": "Pilih pesan untuk membacanya.",
-    "inbox.empty": "Tidak ada apa-apa.",
-    "inbox.filter.all": "Semua",
-    "inbox.filter.approvals": "Persetujuan",
-    "inbox.filter.mentions": "Sebutan",
-    "inbox.filter.tasks": "Tugas",
 
     "approvals.title": "Persetujuan",
     "approvals.pending": "Menunggu",

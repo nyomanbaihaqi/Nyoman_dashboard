@@ -26,7 +26,7 @@ index.html              Home
 brief.html               ceo.html             weekly.html
 tasks.html               kanban.html          projects.html
 project.html?id=         calendar.html
-approvals.html           notes.html           inbox.html
+approvals.html           notes.html
 note.html?id=            meeting.html?id=     meeting-intelligence.html
 templates.html           timeline.html        milestones.html
 issues.html              settings.html        help.html
@@ -168,7 +168,7 @@ Vercel serves the exact path requested, no redirect involved.
 Tokens in `assets/css/tokens.css` are copied verbatim from the handoff's
 `design-tokens/` — they're the contract with design, so don't hand-tune them.
 `assets/css/app.css` holds every component (cards, badges, kanban, gantt,
-calendar, split view, forms, modals, command palette, …) used across all 21
+calendar, split view, forms, modals, command palette, …) used across all 20
 pages.
 
 Icon names ("file-pen", "chart-line") are stored in the data model and mapped
@@ -285,15 +285,19 @@ Screens deleted once it was clear they could not do the job they implied:
   — a preferences panel for a screen that no longer exists is just a lie with
   toggles.
 
-`inbox.html` is still in the tree but **no longer reachable from any screen**,
-and `threads` are never created either — it has the same problem Reminders had.
-It is left in place rather than deleted because nothing was asked about it; if
-it stays unreferenced, delete it.
+- **Inbox** (`inbox.html`) — the same story, one step further along: `threads`
+  were never created, and no screen had linked to the page since the navigation
+  was reorganised, so it was already unreachable.
+
+Their spreadsheet tabs are untouched; only the app stopped reading them.
+`WOS.COLLECTIONS` is down from 16 to 13 — `ideas`, `notifications`, `threads`,
+and `folders` (a leftover of the deleted Knowledge page, read by nothing) no
+longer ride along in every `loadAll`.
 
 ## Status
 
 Built and verified end-to-end, including create/update/delete flows and
-console-clean navigation across every page: all 21 pages listed above, the
+console-clean navigation across every page: all 20 pages listed above, the
 full data layer (both adapters), the app shell (sidebar, mobile drawer, bottom
 nav, top bar, ⌘K command palette), and the Apps Script backend.
 
