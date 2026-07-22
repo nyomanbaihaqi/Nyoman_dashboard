@@ -508,14 +508,6 @@
     { id: "th_8", fromId: "m_alex", fromName: "Alex Rivera", subject: "Reminder: SOP update", preview: "Don't forget to finish the live streaming SOP...", body: "Don't forget to finish the live streaming SOP before the next checkpoint.", kind: "task", read: true, receivedAt: at(-1, 7, 30), attachments: [], approvalId: null },
   ];
 
-  var notifications = [
-    { id: "nt_1", actorId: "m_priya", actorName: "Priya S.", text: "requested your approval on Budget Ads June.", kind: "approval", read: false, createdAt: at(TODAY, 9, 12), href: "approvals.html" },
-    { id: "nt_2", actorId: "m_rizky", actorName: "Rizky P.", text: "mentioned you in Host Academy Curriculum v3.", kind: "mention", read: false, createdAt: at(TODAY, 8, 40), href: "note.html?id=n_curriculum" },
-    { id: "nt_3", actorId: "m_dinda", actorName: "Dinda K.", text: "meminta keputusan soal safety stock vs lead time supplier.", kind: "approval", read: true, createdAt: at(TODAY, 8, 5), href: "approvals.html" },
-    { id: "nt_4", actorId: null, actorName: "System", text: "reminder: Follow up Budget Approval is due at 11:00.", kind: "task", read: true, createdAt: at(TODAY, 7), href: "tasks.html" },
-    { id: "nt_5", actorId: "m_fauzan", actorName: "Fauzan M.", text: "updated the task Approve Budget Ads June.", kind: "task", read: true, createdAt: at(TODAY - 1, 16, 20), href: "tasks.html" },
-    { id: "nt_6", actorId: "m_dinda", actorName: "Dinda K.", text: "invited you to Meeting with CEO.", kind: "meeting", read: true, createdAt: at(TODAY - 1, 9), href: "calendar.html" },
-  ];
 
   var folders = [
     { id: "f_meetings", name: "Meeting Notes", icon: "message-square", iconBg: "#f0f9ff", iconColor: "#0284c7" },
@@ -556,7 +548,6 @@
       threads: threads,
       approvals: approvals,
       changes: changes,
-      notifications: notifications,
       folders: folders,
       files: files,
       comments: comments,

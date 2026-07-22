@@ -451,16 +451,19 @@
     });
   }
 
-  /** Badge counts for the sidebar and tab bar. */
+  /**
+   * Badge counts for the sidebar and tab bar.
+   *
+   * `threads` dropped out with the bell that displayed it — this runs on every
+   * page load, so a collection no badge reads is a request on every navigation
+   * for a number nobody sees.
+   */
   function navCounts() {
-    return loadAll(["tasks", "threads", "approvals", "members"]).then(function (data) {
+    return loadAll(["tasks", "approvals", "members"]).then(function (data) {
       var me = WOS.config.currentUserId;
       return {
         tasks: data.tasks.filter(function (t) {
           return t.assigneeId === me && t.status !== "done";
-        }).length,
-        inbox: data.threads.filter(function (t) {
-          return !t.read;
         }).length,
         approvals: data.approvals.filter(function (a) {
           return a.state === "pending" && a.approverId === me;

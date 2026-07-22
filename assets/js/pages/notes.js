@@ -151,7 +151,7 @@
     }).sort(WOS.by("startAt", "desc"));
 
     var chips = [
-      { id: "all", key: "notifications.filter.all" },
+      { id: "all", key: "projects.filter.all" },
       { id: "week", key: "meetings.filter.thisWeek" },
       { id: "recorded", key: "meetings.filter.recorded" },
     ];

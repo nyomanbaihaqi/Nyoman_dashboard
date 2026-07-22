@@ -25,8 +25,8 @@ page-specific module:
 index.html              Home
 brief.html               ceo.html             weekly.html
 tasks.html               kanban.html          projects.html
-project.html?id=         calendar.html        inbox.html
-notifications.html       approvals.html       notes.html
+project.html?id=         calendar.html
+approvals.html           notes.html           inbox.html
 note.html?id=            meeting.html?id=     meeting-intelligence.html
 templates.html           timeline.html        milestones.html
 issues.html              settings.html        help.html
@@ -168,7 +168,7 @@ Vercel serves the exact path requested, no redirect involved.
 Tokens in `assets/css/tokens.css` are copied verbatim from the handoff's
 `design-tokens/` — they're the contract with design, so don't hand-tune them.
 `assets/css/app.css` holds every component (cards, badges, kanban, gantt,
-calendar, split view, forms, modals, command palette, …) used across all 22
+calendar, split view, forms, modals, command palette, …) used across all 21
 pages.
 
 Icon names ("file-pen", "chart-line") are stored in the data model and mapped
@@ -268,10 +268,32 @@ New data: `changes`, plus a `raiseOn` column on `approvals` (which day to put
 it in front of the CEO — a different fact from when it was requested). Run
 `migrateSheets()` in the Apps Script editor once to add the tab and the column.
 
+## Removed features
+
+Screens deleted once it was clear they could not do the job they implied:
+
+- **Prompt Library, Documents, Automations** — prompts for an AI that wasn't
+  wired up, a duplicate of Notes, and a control panel for a scheduler that
+  doesn't exist.
+- **Daily Notes, Ideas** — unused in practice.
+- **Reminders** (`notifications.html`) — nothing in the app ever *created* a
+  notification, so the page could only ever display its seed rows and would be
+  permanently empty against real data. What it did show (approvals waiting) is
+  what CEO Assistant and Decisions already cover. The header bell went with it:
+  it was counting unread Inbox threads while linking to Notifications, so its
+  number never matched the page it opened. Settings' Notifications tab went too
+  — a preferences panel for a screen that no longer exists is just a lie with
+  toggles.
+
+`inbox.html` is still in the tree but **no longer reachable from any screen**,
+and `threads` are never created either — it has the same problem Reminders had.
+It is left in place rather than deleted because nothing was asked about it; if
+it stays unreferenced, delete it.
+
 ## Status
 
 Built and verified end-to-end, including create/update/delete flows and
-console-clean navigation across every page: all 22 pages listed above, the
+console-clean navigation across every page: all 21 pages listed above, the
 full data layer (both adapters), the app shell (sidebar, mobile drawer, bottom
 nav, top bar, ⌘K command palette), and the Apps Script backend.
 

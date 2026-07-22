@@ -41,7 +41,9 @@
         { href: "notes.html", key: "nav.notes", icon: "layers", id: "notes" },
         { href: "templates.html", key: "templates.title", icon: "lightbulb", id: "templates" },
         { href: "approvals.html", key: "decisions.title", icon: "shield-user", id: "approvals", badge: "approvals" },
-        { href: "notifications.html", key: "nav.reminders", icon: "bell", id: "notifications" },
+        // Reminders is gone: nothing in the app ever created a notification, so
+        // the page could only ever show its seed rows, and what it did show
+        // (approvals waiting) is what CEO Assistant and Decisions already do.
       ],
     },
     {
@@ -72,7 +74,7 @@
     { href: "tasks.html", key: "nav.myTasks", icon: "file-pen", id: "tasks", badge: "tasks" },
   ];
 
-  var state = { user: null, counts: { tasks: 0, inbox: 0, approvals: 0 }, active: "", searchIndex: null };
+  var state = { user: null, counts: { tasks: 0, approvals: 0 }, active: "", searchIndex: null };
 
   /* ── Markup ────────────────────────────────────────────────── */
 
@@ -135,7 +137,6 @@
 
   function topbarMarkup(options) {
     var user = state.user;
-    var unread = state.counts.inbox;
 
     var lead = "";
     if (options.crumbs && options.crumbs.length) {
@@ -169,10 +170,9 @@
       '<span class="topbar__actions">' + (options.actions || "") + "</span>" +
       '<button type="button" class="icon-btn topbar__search-icon-only" data-open-search aria-label="' +
       esc(t("action.search")) + '">' + icon("search", 16) + "</button>" +
-      '<a class="icon-btn" href="notifications.html" aria-label="' + esc(t("notifications.title")) + '">' +
-      icon("bell", 16) +
-      (unread > 0 ? '<span class="dot-badge">' + (unread > 9 ? "9+" : unread) + "</span>" : "") +
-      "</a>" +
+      // The bell went with Reminders. It was also counting unread Inbox threads
+      // while linking to Notifications — two different things — so the number it
+      // showed never matched the page it opened.
       '<a class="topbar__profile" href="settings.html">' +
       WOS.ui.avatar(user, 32) +
       '<span class="topbar__profile-text">' +

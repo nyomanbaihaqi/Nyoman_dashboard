@@ -17,28 +17,7 @@
   var data;
   var state = { tab: "profile" };
 
-  var TABS = ["profile", "workspace", "preferences", "appearance", "notifications"];
-  var PREFS_KEY = "wos.notifPrefs";
-  var DEFAULT_PREFS = { taskReminders: true, meetingAlerts: true, mentions: true, weeklyDigest: false };
-
-  function loadPrefs() {
-    try {
-      var raw = localStorage.getItem(PREFS_KEY);
-      if (raw) return Object.assign({}, DEFAULT_PREFS, JSON.parse(raw));
-    } catch (err) {
-      /* fall through to defaults */
-    }
-    return Object.assign({}, DEFAULT_PREFS);
-  }
-
-  function savePrefs(prefs) {
-    try {
-      localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
-    } catch (err) {
-      /* best effort only */
-    }
-  }
-
+  var TABS = ["profile", "workspace", "preferences", "appearance"];
   /* ── Tabs ──────────────────────────────────────────────────── */
 
   function profileTab() {
@@ -142,34 +121,6 @@
     );
   }
 
-  function notificationsTab() {
-    var prefs = loadPrefs();
-    var rows = [
-      ["taskReminders", "settings.notif.taskReminders"],
-      ["meetingAlerts", "settings.notif.meetingAlerts"],
-      ["mentions", "settings.notif.mentions"],
-      ["weeklyDigest", "settings.notif.weeklyDigest"],
-    ];
-    return (
-      '<div class="card">' +
-      '<h2 class="card__title">' + esc(t("settings.notificationPrefs")) + "</h2>" +
-      // Nothing delivers notifications yet — these toggles only record a
-      // preference. Saying so is better than a switch that looks live and
-      // silently does nothing.
-      '<p class="text-label muted" style="margin-top:4px">' + esc(t("settings.notifPending")) + "</p>" +
-      rows
-        .map(function (row) {
-          return (
-            '<div class="spread" style="padding:11px 0;border-top:1px solid var(--border-subtle)">' +
-            '<span class="text-sm" style="color:var(--text-body)">' + esc(t(row[1])) + "</span>" +
-            ui.toggle(prefs[row[0]], t(row[1]), { "pref-toggle": row[0] }) + "</div>"
-          );
-        })
-        .join("") +
-      "</div>"
-    );
-  }
-
   /* ── Render ────────────────────────────────────────────────── */
 
   function render() {
@@ -190,8 +141,7 @@
     if (state.tab === "profile") body.innerHTML = profileTab();
     else if (state.tab === "workspace") body.innerHTML = workspaceTab();
     else if (state.tab === "preferences") body.innerHTML = preferencesTab();
-    else if (state.tab === "appearance") body.innerHTML = appearanceTab();
-    else body.innerHTML = notificationsTab();
+    else body.innerHTML = appearanceTab();
   }
 
   function bind() {
@@ -261,13 +211,6 @@
       }
     });
 
-    WOS.on(page, "click", "[data-pref-toggle]", function (event, target) {
-      var key = target.dataset.prefToggle;
-      var prefs = loadPrefs();
-      prefs[key] = !prefs[key];
-      savePrefs(prefs);
-      render();
-    });
   }
 
   /* ── Boot ──────────────────────────────────────────────────── */

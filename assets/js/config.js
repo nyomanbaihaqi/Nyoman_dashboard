@@ -63,7 +63,7 @@ WOS.config = {
 /**
  * Collections, one per sheet tab. Order matters only for setup.
  *
- * `ideas` was dropped when the Ideas screen was removed — every loadAll
+ * `ideas` and `notifications` were dropped with the screens that read them — every loadAll
  * batches these, so a collection nothing reads is a request nobody needs. The
  * sheet tab and its rows are left alone; this only stops the app fetching it.
  */
@@ -79,7 +79,6 @@ WOS.COLLECTIONS = [
   "threads",
   "approvals",
   "changes",
-  "notifications",
   "folders",
   "files",
   "comments",
