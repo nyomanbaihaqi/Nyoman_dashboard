@@ -24,6 +24,7 @@ page-specific module:
 ```
 index.html              Home
 brief.html               ceo.html             weekly.html
+scrum.html               notes.html           templates.html
 tasks.html               kanban.html          projects.html
 project.html?id=         calendar.html
 notes.html               templates.html
@@ -168,7 +169,7 @@ Vercel serves the exact path requested, no redirect involved.
 Tokens in `assets/css/tokens.css` are copied verbatim from the handoff's
 `design-tokens/` — they're the contract with design, so don't hand-tune them.
 `assets/css/app.css` holds every component (cards, badges, kanban, gantt,
-calendar, split view, forms, modals, command palette, …) used across all 19
+calendar, split view, forms, modals, command palette, …) used across all 20
 pages.
 
 Icon names ("file-pen", "chart-line") are stored in the data model and mapped
@@ -268,6 +269,96 @@ New data: `changes`, plus a `raiseOn` column on `approvals` (which day to put
 it in front of the CEO — a different fact from when it was requested). Run
 `migrateSheets()` in the Apps Script editor once to add the tab and the column.
 
+## ClickUp tasks
+
+The office runs its task list in ClickUp, so ClickUp is the source of truth:
+the app reads and writes it directly and mirrors nothing into the spreadsheet.
+Switch with `taskSource` in `assets/js/config.js` (`"clickup"` or `"sheets"`),
+and set `clickupListId` to the number after `/li/` in the list's URL.
+
+**Setup.** In ClickUp: avatar → Settings → Apps → generate a personal API token.
+In Vercel: Settings → Environment Variables → add `CLICKUP_TOKEN` → **Redeploy**.
+Environment variables do not apply to a deployment that is already running.
+
+The token is never in the repo and never reaches the browser. A ClickUp personal
+token grants full access to the whole workspace, and this frontend is static
+files anyone can read — so `api/clickup.js` holds it server-side, the same
+arrangement as `SHEETS_SECRET` and `GEMINI_API_KEY`. ClickUp also sends no CORS
+headers, so a direct call from the page would be blocked anyway.
+
+### Where the switch lives
+
+In `store.js`, inside the four functions every page already calls — not in the
+Tasks screen. Tasks are also read by Home, Kanban, the daily brief and the
+weekly review; routing per-page would have left those showing spreadsheet rows
+while Tasks showed ClickUp, which is worse than not integrating at all.
+
+### What the translation has to reconcile
+
+- **Statuses.** ClickUp lists define their own, so writing the literal string
+  `"done"` fails on a list whose closing status is called "Complete". The list's
+  statuses are fetched first and sorted into the app's four by ClickUp's `type`
+  (reliable for open/closed) plus the name (to separate review from in-progress).
+  Writes resolve back to the list's real wording.
+- **Priority** is 1–4 there and three words here, and arrives as an object on
+  most responses but a bare number on some — reading only `.priority` off it
+  makes every task in those replies read as medium.
+- **Dates** are epoch milliseconds as strings, and need `due_date_time` set or
+  ClickUp files everything at midnight UTC, which reads as the previous day in
+  Jakarta.
+- **Identity.** A ClickUp assignee is not a row in the members sheet. People are
+  matched by email so a task assigned to you in ClickUp is recognised as yours
+  here; without it every personal view — "assigned to me", the sidebar count,
+  Today's Focus, the brief's priorities — is empty while all the tasks are still
+  on screen, which is what makes it easy to miss. Unmatched ClickUp people are
+  merged into `members` as `cu_<id>` so their avatars resolve everywhere.
+
+### Failure behaviour
+
+Writes are optimistic and roll back: a rejected update restores the previous
+value and a rejected delete puts the row back, because a delete that failed
+upstream must not look like it worked. The sidebar's task count catches its own
+errors — the shell awaits it before rendering, so letting it reject would leave
+every page with no navigation during a ClickUp outage.
+
+## Daily Scrum
+
+`scrum.html` is the morning report each division files: a photo, a note, and
+the time it was filed. Fixed in shape on purpose — every scrum is the same four
+things — so the whole office reports the same way and the day reads at a glance.
+Choosing a division fills the title ("Daily Scrum <Division>"), so filing one is
+picking a division and attaching a photo.
+
+**Photos.** A base64 image is far past a spreadsheet cell's ~50k-char limit, so
+the photo goes to Drive and the row keeps only the link. The browser downscales
+to 1280px and re-encodes as JPEG before upload — a 5 MB phone photo leaves as
+~200 KB, which also keeps it under the serverless function's request-size limit.
+`api/clickup.js`-style, the work happens in Apps Script: a new `uploadPhoto` op
+saves the file to a "Workspace OS — Scrum Photos" folder shared
+anyone-with-link, and returns a `drive.google.com/uc?...` URL that renders in an
+`<img>`.
+
+**Setup.** Paste the updated `Code.gs` into the Apps Script editor and run any
+function once to trigger the new Drive authorisation prompt (the script now
+touches DriveApp, a scope it didn't need before), then redeploy. In local mode
+there is no Drive, so the downscaled data URL is stored directly.
+
+## Brief: Daily Notes Meeting
+
+A fourth brief tab. It collects the notes written or updated today (from the
+`notes` collection) and produces one WhatsApp-ready message. Keyed off
+`updatedAt` as well as `createdAt`, so a note finished in this morning's meeting
+counts as today's. The markdown is flattened to plain text — WhatsApp renders
+none of it, so headings, code fences, callouts and rules are stripped and table
+rows become "·"-joined lines rather than leaking pipe syntax.
+
+## Notes & Meetings
+
+The **Meetings** tab was removed from the hub. The `meetings` collection stays —
+AI Recap writes to it and the Daily Report Meeting brief reads it — and Home
+still shows recent meetings linking to their detail pages; only the list tab and
+its dead "View all" link are gone.
+
 ## Removed features
 
 Screens deleted once it was clear they could not do the job they implied:
@@ -305,7 +396,7 @@ longer ride along in every `loadAll`.
 ## Status
 
 Built and verified end-to-end, including create/update/delete flows and
-console-clean navigation across every page: all 19 pages listed above, the
+console-clean navigation across every page: all 20 pages listed above, the
 full data layer (both adapters), the app shell (sidebar, mobile drawer, bottom
 nav, top bar, ⌘K command palette), and the Apps Script backend.
 

@@ -330,6 +330,137 @@
     return lines.join("\n").trim();
   }
 
+  /* ── Today's notes, for blasting ────────────────────────────── */
+
+  /**
+   * Notes written or updated today, newest first.
+   *
+   * Keyed off updatedAt, not createdAt: a note started yesterday and finished
+   * in this morning's meeting is today's material, and that's the one most
+   * worth sending out.
+   */
+  function todaysNotes() {
+    return (data.notes || [])
+      .filter(function (note) {
+        if (note.archived) return false;
+        return fmt.isToday(note.updatedAt) || fmt.isToday(note.createdAt);
+      })
+      .sort(WOS.by("updatedAt", "desc"));
+  }
+
+  /**
+   * Flatten a note's markdown to plain text for WhatsApp.
+   *
+   * WhatsApp renders none of it, so anything left in leaks as literal syntax —
+   * `##`, table pipes, code fences. Handled line by line: table separator rows
+   * are dropped, table cells become "·"-joined, and fences and rules disappear,
+   * so a note pasted into chat reads as sentences rather than source.
+   */
+  function plainNote(content) {
+    var inFence = false;
+
+    var lines = String(content || "").split("\n").map(function (line) {
+      var trimmed = line.trim();
+
+      if (trimmed.indexOf("```") === 0) {
+        inFence = !inFence;
+        return null;
+      }
+      if (inFence) return line;
+
+      if (/^-{3,}$/.test(trimmed) || /^\|?[\s:|-]+\|?$/.test(trimmed) && /-/.test(trimmed) && /\|/.test(trimmed)) {
+        return null; // horizontal rule, or a table's --- separator row
+      }
+
+      // Table row → cells joined with a middot.
+      if (/^\|.*\|/.test(trimmed)) {
+        line = trimmed.replace(/^\||\|$/g, "").split("|").map(function (cell) {
+          return cell.trim();
+        }).join(" · ");
+      }
+
+      return line
+        .replace(/^#{1,6}\s+/, "")
+        .replace(/^>\s*\[![^\]]*\]\s*/i, "")
+        .replace(/^>\s?/, "")
+        .replace(/^\s*[-*]\s+\[[ xX]\]\s+/, "- ")
+        .replace(/^\s*[-*]\s+/, "- ")
+        .replace(/\*\*([^*]+)\*\*/g, "$1")
+        .replace(/~~([^~]+)~~/g, "$1")
+        .replace(/`([^`]+)`/g, "$1")
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+    });
+
+    return lines
+      .filter(function (line) {
+        return line !== null;
+      })
+      .join("\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  }
+
+  /** Today's notes as one WhatsApp message. */
+  function dailyNotesText() {
+    var notes = todaysNotes();
+    var lines = ["*" + t("brief.notes").toUpperCase() + "*", fmt.fullDate(new Date()), ""];
+
+    if (!notes.length) {
+      lines.push(t("brief.noNotesToday"));
+      return lines.join("\n");
+    }
+
+    notes.forEach(function (note, index) {
+      lines.push("*" + (index + 1) + ". " + WOS.nameOr(note.title, t("common.untitled")) + "*");
+      var body = plainNote(note.content);
+      if (body) lines.push(body);
+      lines.push("");
+    });
+
+    return lines.join("\n").trim();
+  }
+
+  function dailyNotesView() {
+    var notes = todaysNotes();
+
+    var head =
+      '<div class="spread" style="align-items:flex-start;flex-wrap:wrap;gap:12px">' +
+      '<div><h2 class="card__title" style="font-size:17px">' + esc(t("brief.notes")) + "</h2>" +
+      '<p class="text-label muted" style="margin-top:2px">' + esc(t("brief.notesSubtitle")) + "</p></div>" +
+      (notes.length
+        ? '<button type="button" class="btn btn--primary btn--sm" data-copy-notes>' +
+          icon("message-square", 14, { color: "#fff" }) + esc(t("brief.copy")) + "</button>"
+        : "") +
+      "</div>";
+
+    if (!notes.length) {
+      return head + '<div class="card" style="margin-top:16px">' +
+        ui.empty(t("brief.noNotesToday"), t("brief.noNotesTodayHint"), null, "layers") + "</div>";
+    }
+
+    return (
+      head +
+      '<div class="stack" style="margin-top:16px">' +
+      notes
+        .map(function (note) {
+          return (
+            '<div class="card"><div class="spread" style="align-items:flex-start;gap:10px">' +
+            '<span><span class="row__title" style="display:block;font-size:15px">' +
+            esc(WOS.nameOr(note.title, t("common.untitled"))) + "</span>" +
+            '<span class="row__meta" style="display:block">' + esc(fmt.relative(note.updatedAt)) + "</span></span>" +
+            '<a class="btn btn--outline btn--sm" href="note.html?id=' + esc(note.id) + '">' + esc(t("action.open")) + "</a></div>" +
+            (note.content
+              ? '<div class="prose" style="margin-top:10px">' + ui.markdown(note.content) + "</div>"
+              : '<p class="text-sm muted" style="margin-top:10px">' + esc(t("state.empty")) + "</p>") +
+            "</div>"
+          );
+        })
+        .join("") +
+      "</div>" +
+      '<div style="margin-top:16px">' + preview(dailyNotesText()) + "</div>"
+    );
+  }
+
   /* ── Render ────────────────────────────────────────────────── */
 
   function preview(text) {
@@ -522,6 +653,7 @@
     var tabs = [
       { id: "daily", key: "brief.daily" },
       { id: "report", key: "brief.report" },
+      { id: "notes", key: "brief.notes" },
       { id: "pre", key: "brief.preMeeting" },
     ];
 
@@ -543,7 +675,10 @@
 
     var body = WOS.$("[data-brief-body]", page);
     body.innerHTML =
-      state.tab === "daily" ? dailyView() : state.tab === "report" ? reportView() : preMeetingView();
+      state.tab === "daily" ? dailyView()
+        : state.tab === "report" ? reportView()
+        : state.tab === "notes" ? dailyNotesView()
+        : preMeetingView();
   }
 
   function bind() {
@@ -558,6 +693,10 @@
 
     WOS.on(page, "click", "[data-copy-report]", function () {
       ui.copyText(dailyReportText(), "brief.copied");
+    });
+
+    WOS.on(page, "click", "[data-copy-notes]", function () {
+      ui.copyText(dailyNotesText(), "brief.copied");
     });
 
     WOS.on(page, "click", "[data-copy-pre]", function (event, target) {
@@ -583,7 +722,7 @@
       dayEnd.setDate(dayEnd.getDate() + 1);
 
       return Promise.all([
-        WOS.db.loadAll(["tasks", "approvals", "members", "meetings"]),
+        WOS.db.loadAll(["tasks", "approvals", "members", "meetings", "notes"]),
         // The agenda is one of three sections. If the calendar is unreachable,
         // the priorities and pending decisions are still worth having, so this
         // degrades to an empty schedule with a warning rather than taking the

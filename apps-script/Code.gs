@@ -74,6 +74,11 @@ var SCHEMA = {
     'id', 'title', 'description', 'date', 'ownerId', 'divisionId', 'status',
     'tasks', 'result', 'impact', 'reportedAt', 'createdAt', 'updatedAt',
   ],
+
+  /** Morning scrum report per division: a photo, a note, and when. */
+  scrums: [
+    'id', 'title', 'photoUrl', 'notes', 'divisionId', 'authorId', 'createdAt', 'updatedAt',
+  ],
   notifications: ['id', 'actorId', 'actorName', 'text', 'kind', 'read', 'createdAt', 'href'],
   folders: ['id', 'name', 'icon', 'iconBg', 'iconColor'],
   files: ['id', 'folderId', 'title', 'noteId', 'icon', 'favorite', 'updatedAt', 'updatedById'],
@@ -138,6 +143,13 @@ function doPost(e) {
       return respond({ ok: true, data: dispatchCalendar(body) });
     }
 
+    // A photo is written to Drive, not a sheet cell — a base64 image is far
+    // past the ~50k-character cell limit, so the scrum row stores only the
+    // resulting link. No lock: Drive serialises its own writes.
+    if (body.op === 'uploadPhoto') {
+      return respond({ ok: true, data: uploadPhoto(body) });
+    }
+
     var columns = SCHEMA[body.collection];
     if (!columns) return respond({ ok: false, error: 'unknown collection: ' + body.collection });
 
@@ -155,6 +167,50 @@ function doPost(e) {
   } catch (err) {
     return respond({ ok: false, error: String(err && err.message ? err.message : err) });
   }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Drive uploads
+
+   Scrum photos can't live in a spreadsheet cell, so they go to a
+   folder in the owning account's Drive and the row keeps only the
+   link. The client sends a data URL (already downscaled), which is
+   split into its mime type and base64 body here.
+
+   The folder is shared "anyone with the link can view" so the photo
+   renders for the whole team, not just the account that owns the
+   script — the same access model as the spreadsheet behind this
+   endpoint.
+   ════════════════════════════════════════════════════════════════ */
+
+var SCRUM_FOLDER = 'Workspace OS — Scrum Photos';
+
+function scrumFolder() {
+  var existing = DriveApp.getFoldersByName(SCRUM_FOLDER);
+  if (existing.hasNext()) return existing.next();
+  var folder = DriveApp.createFolder(SCRUM_FOLDER);
+  folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return folder;
+}
+
+function uploadPhoto(body) {
+  var dataUrl = String(body.dataUrl || '');
+  var match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (!match) throw new Error('Expected a base64 data URL.');
+
+  var mime = match[1];
+  if (mime.indexOf('image/') !== 0) throw new Error('Only image uploads are allowed.');
+
+  var bytes = Utilities.base64Decode(match[2]);
+  var name = (body.name ? String(body.name) : 'scrum') + '-' + new Date().getTime() +
+    '.' + (mime.split('/')[1] || 'jpg');
+
+  var blob = Utilities.newBlob(bytes, mime, name);
+  var file = scrumFolder().createFile(blob);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+
+  // The /uc form renders inline in an <img>; the file page does not.
+  return { url: 'https://drive.google.com/uc?export=view&id=' + file.getId(), id: file.getId() };
 }
 
 /* ════════════════════════════════════════════════════════════════

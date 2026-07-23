@@ -443,6 +443,28 @@
   ];
 
   /**
+   * Morning scrum reports. Seeded across two days, one per division, so the
+   * list reads the way it will in use: today's on top, grouped by day.
+   */
+  var scrums = [
+    {
+      id: "sc_1", title: "Daily Scrum Commercial",
+      photoUrl: "", notes: "Kejar closing 2 klien retensi. Blocker: nunggu approval diskon dari Priya. Target hari ini kirim proposal revisi.",
+      divisionId: "d_commercial", authorId: "m_priya", createdAt: at(TODAY, 8, 5), updatedAt: at(TODAY, 8, 5),
+    },
+    {
+      id: "sc_2", title: "Daily Scrum Operations",
+      photoUrl: "", notes: "Stok Batch 12 aman 12 hari. PO baru dikirim ke supplier. Tidak ada blocker.",
+      divisionId: "d_ops", authorId: "m_dinda", createdAt: at(TODAY, 8, 12), updatedAt: at(TODAY, 8, 12),
+    },
+    {
+      id: "sc_3", title: "Daily Scrum Content",
+      photoUrl: "", notes: "Shooting checkpoint 3 Host Academy jam 14.00. Butuh konfirmasi lighting studio dari tim ops.",
+      divisionId: "d_content", authorId: "m_fauzan", createdAt: at(TODAY - 1, 8, 9), updatedAt: at(TODAY - 1, 8, 9),
+    },
+  ];
+
+  /**
    * The standard messages the role sends over and over. Kept as data so the
    * wording stays consistent no matter who is covering the desk that week.
    * Placeholders in [brackets] are filled in before sending.
@@ -537,6 +559,7 @@
       ideas: ideas,
       approvals: approvals,
       changes: changes,
+      scrums: scrums,
       folders: folders,
       files: files,
       comments: comments,

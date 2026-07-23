@@ -17,7 +17,7 @@
 
   var page;
   var data;
-  var state = { view: "home", meetingsFilter: "all" };
+  var state = { view: "home" };
   var recap = { busy: false, stage: "uploading", ratio: 0, report: null, error: "" };
 
   function nonDaily(list) {
@@ -74,7 +74,7 @@
       "</div></div></div>" +
       '<div class="grid grid--lg-3" style="margin-top:18px">' +
       '<div class="card"><div class="spread"><h2 class="card__title">' + esc(t("notes.recentMeetings")) + '</h2>' +
-      '<a class="text-xs fw-semibold" href="#" data-goto-view="meetings">' + esc(t("action.viewAll")) + "</a></div>" +
+      "</div>" +
       (recentMeetings.length
         ? recentMeetings
             .map(function (m) {
@@ -139,86 +139,6 @@
       "</div></div>"
     );
   }
-
-  /* ── Meetings ──────────────────────────────────────────────── */
-
-  function meetingsView() {
-    var filter = state.meetingsFilter;
-    var list = data.meetings.filter(function (m) {
-      if (filter === "week") return fmt.isThisWeek(m.startAt);
-      if (filter === "recorded") return m.status === "recorded" || m.status === "processed";
-      return true;
-    }).sort(WOS.by("startAt", "desc"));
-
-    var chips = [
-      { id: "all", key: "projects.filter.all" },
-      { id: "week", key: "meetings.filter.thisWeek" },
-      { id: "recorded", key: "meetings.filter.recorded" },
-    ];
-
-    var head =
-      '<div class="page__head">' +
-      '<h2 class="page__title" style="font-size:19px">' + esc(t("meetings.title")) + "</h2>" +
-      '<div class="chips">' +
-      chips
-        .map(function (chip) {
-          return (
-            '<button type="button" class="chip' + (filter === chip.id ? " is-active" : "") +
-            '" data-meetings-filter="' + chip.id + '">' + esc(t(chip.key)) + "</button>"
-          );
-        })
-        .join("") +
-      "</div></div>";
-
-    if (!list.length) return head + '<div class="card" style="margin-top:18px">' + ui.empty(t("state.empty"), null, null, "message-square") + "</div>";
-
-    var rows = list
-      .map(function (m) {
-        var participants = (m.participantIds || []).map(function (id) {
-          return data.memberById.get(id);
-        }).filter(Boolean);
-        var project = data.projectById.get(m.projectId);
-        return (
-          '<a class="table__row" href="meeting.html?id=' + esc(m.id) +
-          '" style="grid-template-columns:2.2fr 1fr 0.8fr 1.2fr 1fr 0.9fr;text-decoration:none">' +
-          '<span><span class="row__title" style="display:block">' + esc(WOS.nameOr(m.title, t("common.untitled"))) + "</span>" +
-          '<span class="cluster" style="gap:4px;margin-top:4px">' + ui.tags(m.tags) + "</span></span>" +
-          '<span class="text-sm muted">' + esc(fmt.dayMonth(m.startAt)) + "</span>" +
-          '<span class="text-sm muted">' + esc(fmt.duration(m.durationMin)) + "</span>" +
-          '<span>' + ui.avatarStack(participants, 24, 4) + "</span>" +
-          '<span class="text-sm truncate" style="color:var(--text-body)">' + esc(project ? project.name : "—") + "</span>" +
-          ui.badge(t("meetings.status." + m.status), ui.MEETING_TONE[m.status]) +
-          "</a>"
-        );
-      })
-      .join("");
-
-    var cards = list
-      .map(function (m) {
-        var project = data.projectById.get(m.projectId);
-        return (
-          '<a class="card" href="meeting.html?id=' + esc(m.id) + '" style="display:block">' +
-          '<div class="spread"><span class="row__title">' + esc(WOS.nameOr(m.title, t("common.untitled"))) + "</span>" +
-          ui.badge(t("meetings.status." + m.status), ui.MEETING_TONE[m.status]) + "</div>" +
-          '<p class="text-label muted" style="margin-top:6px">' + esc(fmt.dayMonth(m.startAt)) + " · " + esc(fmt.duration(m.durationMin)) +
-          " · " + esc(project ? project.name : "—") + "</p></a>"
-        );
-      })
-      .join("");
-
-    return (
-      head +
-      '<div class="card card--flush" style="margin-top:18px"><div class="table">' +
-      '<div class="table__head" style="grid-template-columns:2.2fr 1fr 0.8fr 1.2fr 1fr 0.9fr">' +
-      "<span>" + esc(t("meetings.col.meeting")) + "</span><span>" + esc(t("meetings.col.date")) + "</span><span>" +
-      esc(t("meetings.col.duration")) + "</span><span>" + esc(t("meetings.col.participants")) + "</span><span>" +
-      esc(t("meetings.col.project")) + "</span><span>" + esc(t("tasks.col.status")) + "</span></div>" +
-      rows + "</div>" +
-      '<div class="card-list" style="padding:12px">' + cards + "</div></div>"
-    );
-  }
-
-  /* ── Notes ─────────────────────────────────────────────────── */
 
   function notesListView() {
     var list = nonDaily(data.notes).slice().sort(WOS.by("updatedAt", "desc"));
@@ -513,7 +433,7 @@
 
   /* ── Render ────────────────────────────────────────────────── */
 
-  var VIEWS = ["home", "meetings", "notes", "recap"];
+  var VIEWS = ["home", "notes", "recap"];
 
   function render() {
     page.innerHTML =
@@ -529,7 +449,6 @@
 
     var body = WOS.$("[data-view-body]", page);
     if (state.view === "home") body.innerHTML = homeView();
-    else if (state.view === "meetings") body.innerHTML = meetingsView();
     else if (state.view === "notes") body.innerHTML = notesListView();
     else body.innerHTML = recapView();
   }
@@ -542,10 +461,6 @@
     WOS.on(page, "click", "[data-goto-view]", function (event, target) {
       event.preventDefault();
       state.view = target.dataset.gotoView;
-      render();
-    });
-    WOS.on(page, "click", "[data-meetings-filter]", function (event, target) {
-      state.meetingsFilter = target.dataset.meetingsFilter;
       render();
     });
     WOS.on(page, "change", "[data-recap-file]", function (event, input) {

@@ -159,6 +159,46 @@
     return WOS.config.backend === "api";
   };
 
+  /* ── ClickUp ───────────────────────────────────────────────── */
+
+  /**
+   * True when this collection lives in ClickUp instead of the spreadsheet.
+   *
+   * The switch sits here, in the four functions every page already calls,
+   * rather than in the Tasks screen. Tasks are also read by Home, Kanban, the
+   * daily brief and the weekly review — routing per-page would have left those
+   * showing spreadsheet rows while Tasks showed ClickUp, which is worse than
+   * not integrating at all.
+   */
+  function viaClickUp(collection) {
+    return collection === "tasks" && WOS.clickup && WOS.clickup.isActive();
+  }
+
+  /**
+   * ClickUp's people, merged into `members` so avatars resolve everywhere.
+   *
+   * A ClickUp assignee is not a row in the members sheet, so without this
+   * every task would render the "?" avatar on every screen.
+   */
+  function withClickUpPeople(rows) {
+    if (!WOS.clickup || !WOS.clickup.isActive()) return rows;
+
+    var extra = WOS.clickup.people();
+    if (!extra.length) return rows;
+
+    var known = {};
+    (rows || []).forEach(function (member) {
+      known[member.id] = true;
+      if (member.email) known[String(member.email).toLowerCase()] = true;
+    });
+
+    return (rows || []).concat(
+      extra.filter(function (person) {
+        return !known[person.id] && !(person.email && known[String(person.email).toLowerCase()]);
+      })
+    );
+  }
+
   /* ── Public API ────────────────────────────────────────────── */
 
   /**
@@ -167,6 +207,27 @@
    */
   function list(collection) {
     if (cache[collection]) return Promise.resolve(cache[collection]);
+
+    if (viaClickUp(collection)) {
+      // Members first, so a ClickUp assignee who is also in the members sheet
+      // resolves to the app's id for that person. `members` never routes back
+      // through ClickUp, so this can't recurse.
+      return list("members")
+        .catch(function () {
+          return [];
+        })
+        .then(function (members) {
+          WOS.clickup.identify(members);
+          return WOS.clickup.list();
+        })
+        .then(function (rows) {
+          cache[collection] = rows;
+          // Deliberately not written to sessionStorage: ClickUp is edited by
+          // the whole office, and serving a cached list after a reload would
+          // show someone else's work as it was minutes ago.
+          return rows;
+        });
+    }
 
     if (!useApi()) {
       cache[collection] = localRead(collection);
@@ -196,6 +257,31 @@
    * five seconds waiting. Anything already cached is left out of the request.
    */
   function loadAll(names) {
+    // Tasks come from a different system on a different request, so they are
+    // pulled out of the batch and re-joined at the end. They run in parallel
+    // with the spreadsheet read rather than after it — a page asking for both
+    // shouldn't pay for them one after the other.
+    var fromClickUp = names.filter(viaClickUp);
+    if (fromClickUp.length) {
+      var rest = names.filter(function (name) {
+        return !viaClickUp(name);
+      });
+
+      return Promise.all([
+        rest.length ? loadAll(rest) : Promise.resolve({}),
+        Promise.all(fromClickUp.map(list)),
+      ]).then(function (results) {
+        var merged = Object.assign({}, results[0]);
+        fromClickUp.forEach(function (name, index) {
+          merged[name] = results[1][index];
+        });
+        // Members must be widened after ClickUp's people are known, which only
+        // happens once its metadata has loaded — hence here, not in list().
+        if (merged.members) merged.members = withClickUpPeople(merged.members);
+        return merged;
+      });
+    }
+
     if (!useApi()) {
       return Promise.all(names.map(list)).then(function (results) {
         return zip(names, results);
@@ -277,6 +363,14 @@
   }
 
   function create(collection, data) {
+    if (viaClickUp(collection)) {
+      return WOS.clickup.create(data).then(function (saved) {
+        if (cache[collection]) cache[collection].push(saved);
+        emit(collection);
+        return saved;
+      });
+    }
+
     var row = Object.assign({}, data);
     if (!row.id) row.id = WOS.newId(collection.slice(0, 2));
 
@@ -310,6 +404,25 @@
       merged.id = id;
       rows[index] = merged;
 
+      if (viaClickUp(collection)) {
+        emit(collection);
+        return WOS.clickup
+          .update(id, patch)
+          .then(function (saved) {
+            if (saved) rows[index] = saved;
+            emit(collection);
+            return saved || merged;
+          })
+          .catch(function (error) {
+            // Put the row back the way ClickUp still has it, or the screen keeps
+            // showing a change the office never received.
+            rows[index] = Object.assign({}, rows[index], { id: id });
+            delete cache[collection];
+            emit(collection);
+            throw error;
+          });
+      }
+
       if (!useApi()) {
         localWrite(collection, rows);
         emit(collection);
@@ -332,7 +445,24 @@
         return row.id === id;
       });
       if (index === -1) return false;
+      var removed = rows[index];
       rows.splice(index, 1);
+
+      if (viaClickUp(collection)) {
+        emit(collection);
+        return WOS.clickup
+          .remove(id)
+          .then(function () {
+            return true;
+          })
+          .catch(function (error) {
+            // A delete that failed upstream must not look like it worked —
+            // this is the one action nobody double-checks.
+            rows.splice(index, 0, removed);
+            emit(collection);
+            throw error;
+          });
+      }
 
       if (!useApi()) {
         localWrite(collection, rows);
@@ -459,16 +589,52 @@
    * for a number nobody sees.
    */
   function navCounts() {
-    return loadAll(["tasks", "approvals", "members"]).then(function (data) {
-      var me = WOS.config.currentUserId;
+    var me = WOS.config.currentUserId;
+
+    // Each side is allowed to fail on its own. The shell awaits this before it
+    // renders, so a rejection here takes down the sidebar on every page — and
+    // once tasks come from ClickUp, that would mean a ClickUp outage leaving
+    // the whole app with no navigation. A badge is decoration; it must never
+    // be able to do that.
+    var tasks = list("tasks").catch(function (error) {
+      console.warn("[wos] task count unavailable", error);
+      return [];
+    });
+    var rest = loadAll(["approvals", "members"]).catch(function (error) {
+      console.warn("[wos] approval count unavailable", error);
+      return { approvals: [] };
+    });
+
+    return Promise.all([tasks, rest]).then(function (results) {
       return {
-        tasks: data.tasks.filter(function (t) {
+        tasks: results[0].filter(function (t) {
           return t.assigneeId === me && t.status !== "done";
         }).length,
-        approvals: data.approvals.filter(function (a) {
+        approvals: (results[1].approvals || []).filter(function (a) {
           return a.state === "pending" && a.approverId === me;
         }).length,
       };
+    });
+  }
+
+  /**
+   * Store an image and return a link to it.
+   *
+   * On the API backend the photo goes to Drive via Apps Script — a base64
+   * image is far past a spreadsheet cell's ~50k-char limit, so the row can only
+   * ever hold the link. In local mode there is no Drive, so the (already
+   * downscaled) data URL is kept as-is: it renders fine and persists in
+   * localStorage, which is all local mode ever promised.
+   *
+   * @param {string} dataUrl  a `data:image/...;base64,...` string
+   * @returns {Promise<string>} a URL usable in an <img src>
+   */
+  function uploadPhoto(dataUrl, name) {
+    if (!useApi()) return Promise.resolve(dataUrl);
+
+    return rpc(null, "uploadPhoto", { dataUrl: dataUrl, name: name || "scrum" }).then(function (result) {
+      if (!result || !result.url) throw new Error("Upload returned no link.");
+      return result.url;
     });
   }
 
@@ -479,6 +645,7 @@
     create: create,
     update: update,
     remove: remove,
+    uploadPhoto: uploadPhoto,
     resetLocal: resetLocal,
     seedRemote: seedRemote,
     onChange: onChange,

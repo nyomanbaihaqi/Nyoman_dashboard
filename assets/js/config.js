@@ -54,6 +54,29 @@ WOS.config = {
   calendarIds: [],
 
   /**
+   * Where tasks live.
+   *
+   *   "sheets"  — the `tasks` collection, like every other screen.
+   *   "clickup" — the team's ClickUp list, through /api/clickup. Requires
+   *               backend "api" and CLICKUP_TOKEN set in Vercel.
+   *
+   * ClickUp is the source of truth when this is on: the office already runs
+   * its task list there, so nothing is mirrored into the spreadsheet and
+   * there is only ever one list. Every screen that reads tasks — Home,
+   * Kanban, the daily brief, the weekly review — follows this switch, because
+   * the routing lives in the store rather than in the Tasks page.
+   */
+  taskSource: "clickup",
+
+  /**
+   * The ClickUp list to read and write. Taken from the list's URL:
+   * app.clickup.com/<team>/v/li/<listId> — it's the number after /li/.
+   * Not a secret; the token that grants access to it is, and that lives
+   * only in CLICKUP_TOKEN on the server.
+   */
+  clickupListId: "901819723834",
+
+  /**
    * Which member the app renders as, until Google sign-in is wired up.
    * Falls back to the workspace owner when this id isn't found.
    */
@@ -79,6 +102,7 @@ WOS.COLLECTIONS = [
   "meetings",
   "approvals",
   "changes",
+  "scrums",
   "files",
   "comments",
   "templates",

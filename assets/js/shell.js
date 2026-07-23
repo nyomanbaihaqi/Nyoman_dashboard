@@ -39,6 +39,7 @@
         { href: "calendar.html", key: "nav.calendar", icon: "clock", id: "calendar" },
         { href: "tasks.html", key: "nav.myTasks", icon: "file-pen", id: "tasks", badge: "tasks" },
         { href: "notes.html", key: "nav.notes", icon: "layers", id: "notes" },
+        { href: "scrum.html", key: "scrum.title", icon: "message-square", id: "scrum" },
         { href: "templates.html", key: "templates.title", icon: "lightbulb", id: "templates" },
         // Reminders and Decisions both folded into CEO Assistant: nothing ever
         // created a notification, and Decisions showed the same approvals from
