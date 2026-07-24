@@ -618,6 +618,16 @@ textarea.inp { min-height: 130px; resize: vertical; font-family: var(--mono); fo
 .hari-lbl { font-size: 10.5px; color: var(--teks3); display: flex; justify-content: space-between; align-items: center; }
 .titik-manual { width: 6px; height: 6px; border-radius: 50%; background: var(--aksen); }
 
+/* Keterangan detail di bawah nominal — sengaja tipis supaya nominal tetap
+   jadi angka yang paling menonjol di dalam sel. */
+.sel-ket {
+  width: 100%; font-size: 10px; padding: 3px 6px; color: var(--teks2);
+  border: 1px solid var(--garis); border-radius: 5px; background: var(--bg2);
+  text-overflow: ellipsis;
+}
+.sel-ket:focus { background: #fff; border-color: var(--aksen); color: var(--teks); outline: none; }
+.sel-ket::placeholder { color: var(--teks3); font-style: italic; }
+
 /* --------------------------------------------------------------- modal */
 .modal-bg {
   position: fixed; inset: 0; background: rgba(15,23,42,.44); backdrop-filter: blur(3px);

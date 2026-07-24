@@ -223,9 +223,9 @@
 
     /* map[coa][tanggal] = nominal */
     var map = {};
-    function set(coa, tgl, nominal, sumber) {
+    function set(coa, tgl, nominal, sumber, keterangan) {
       if (!map[coa]) map[coa] = {};
-      map[coa][tgl] = { nominal: nominal, sumber: sumber };
+      map[coa][tgl] = { nominal: nominal, sumber: sumber, keterangan: keterangan || '' };
     }
 
     /* 1. sebar rata dari rencana bulanan */
@@ -235,7 +235,7 @@
       if (!nominal || !r.coa) continue;
       var bln = bulanKey(r.bulan);
       var tgls = tanggalBulan(bln), per = Math.round(nominal / tgls.length), j;
-      for (j = 0; j < tgls.length; j++) set(r.coa, tgls[j], per, 'rencana');
+      for (j = 0; j < tgls.length; j++) set(r.coa, tgls[j], per, 'rencana', r.keterangan);
     }
 
     /* 2. override harian menang */
@@ -243,7 +243,7 @@
       var h = rh[i];
       var n = Number(h.nominal) || 0;
       if (!h.coa) continue;
-      set(h.coa, String(h.tanggal).slice(0, 10), n, 'rencana');
+      set(h.coa, String(h.tanggal).slice(0, 10), n, 'rencana', h.keterangan);
     }
 
     /* 3. rakit per tanggal yang diminta */
@@ -255,7 +255,13 @@
         var sel = map[coa][tgl];
         if (!sel || !sel.nominal) continue;
         if (!peta[tgl]) peta[tgl] = [];
-        peta[tgl].push({ coa: coa, nominal: sel.nominal, label: 'Rencana pengeluaran', sumber: 'rencana' });
+        /* Keterangan lebih spesifik daripada nama pos-nya, jadi kalau ada dia
+           yang dipakai sebagai judul baris di agenda & detail harian. */
+        peta[tgl].push({
+          coa: coa, nominal: sel.nominal, sumber: 'rencana',
+          label: sel.keterangan || 'Rencana pengeluaran',
+          keterangan: sel.keterangan || ''
+        });
       }
     }
     return peta;

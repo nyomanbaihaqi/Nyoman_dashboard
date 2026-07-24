@@ -179,8 +179,14 @@
       r.gmv = Number(r.gmv) || 0; r.tanggal = String(r.tanggal).slice(0, 10);
       r.skenario = String(r.skenario || 'optimis').trim().toLowerCase();
     });
-    d.rencanaBulanan.forEach(function (r) { r.nominal = Number(r.nominal) || 0; r.bulan = String(r.bulan).slice(0, 7); });
-    d.rencanaHarian.forEach(function (r) { r.nominal = Number(r.nominal) || 0; r.tanggal = String(r.tanggal).slice(0, 10); });
+    d.rencanaBulanan.forEach(function (r) {
+      r.nominal = Number(r.nominal) || 0; r.bulan = String(r.bulan).slice(0, 7);
+      r.keterangan = String(r.keterangan || '').trim();
+    });
+    d.rencanaHarian.forEach(function (r) {
+      r.nominal = Number(r.nominal) || 0; r.tanggal = String(r.tanggal).slice(0, 10);
+      r.keterangan = String(r.keterangan || '').trim();
+    });
 
     ['saldoAwal', 'ambangBahaya', 'ambangWaspada', 'lagDefault', 'kursRMB', 'kursUSD', 'horizonBulan', 'baselineHari']
       .forEach(function (k) { d.config[k] = Number(d.config[k]) || 0; });

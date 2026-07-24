@@ -286,15 +286,29 @@
         inp.addEventListener('change', function () {
           var v = UI.parseUang(inp.value), p;
           if (ov) p = (v === per) ? S.hapus('rencanaHarian', ov.id) : S.ubah('rencanaHarian', ov.id, { nominal: v });
-          else p = S.tambah('rencanaHarian', { tanggal: t, coa: coa, nominal: v });
+          else p = S.tambah('rencanaHarian', { tanggal: t, coa: coa, nominal: v, keterangan: '' });
           p.then(function () { UI.toast('Override ' + UI.tglPendek(t) + ' tersimpan', 'sukses'); gambar(); if (ulang) ulang(); });
         });
+
+        /* Keterangan cuma muncul di tanggal yang benar-benar ada nominalnya,
+           supaya grid tidak jadi dua kali lebih tinggi karena hari kosong. */
+        var inKet = null;
+        if (ov) {
+          inKet = el('input', { class: 'sel-ket', value: ov.keterangan || '',
+            placeholder: CFG.namaCoa(coa), title: 'Keterangan detail — tampil di Agenda Kas & rincian harian' });
+          inKet.addEventListener('change', function () {
+            S.ubah('rencanaHarian', ov.id, { keterangan: inKet.value.trim() })
+              .then(function () { UI.toast('Keterangan tersimpan', 'sukses'); if (ulang) ulang(); });
+          });
+        }
+
         grid.appendChild(el('div', { class: 'hari-sel' }, [
           el('div', { class: 'hari-lbl' }, [
             el('span', { text: UI.tglPendek(t) }),
             ov ? el('span', { class: 'titik-manual', title: 'override manual' }) : null
           ]),
-          inp
+          inp,
+          inKet
         ]));
       });
 
