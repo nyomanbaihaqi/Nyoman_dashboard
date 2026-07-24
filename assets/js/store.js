@@ -255,8 +255,20 @@
    * Script holds a script lock for the duration of every call, so issuing six
    * at once just queues them — a page needing six collections spent about
    * five seconds waiting. Anything already cached is left out of the request.
+   *
+   * @param {string[]} [optional] collections that degrade to [] on failure
+   *   instead of rejecting the whole load. A page where tasks are one widget
+   *   among many (Home, the briefs) marks them optional, so a ClickUp outage
+   *   or a not-yet-set token leaves that page working with an empty task list
+   *   rather than a full error screen. The pages that ARE the task list
+   *   (My Tasks, Kanban) leave it required, so they still surface the reason.
    */
-  function loadAll(names) {
+  function loadAll(names, optional) {
+    optional = optional || [];
+    var isOptional = function (name) {
+      return optional.indexOf(name) !== -1;
+    };
+
     // Tasks come from a different system on a different request, so they are
     // pulled out of the batch and re-joined at the end. They run in parallel
     // with the spreadsheet read rather than after it — a page asking for both
@@ -268,8 +280,14 @@
       });
 
       return Promise.all([
-        rest.length ? loadAll(rest) : Promise.resolve({}),
-        Promise.all(fromClickUp.map(list)),
+        rest.length ? loadAll(rest, optional) : Promise.resolve({}),
+        Promise.all(fromClickUp.map(function (name) {
+          if (!isOptional(name)) return list(name);
+          return list(name).catch(function (error) {
+            console.warn("[wos] " + name + " unavailable, continuing without it", error);
+            return [];
+          });
+        })),
       ]).then(function (results) {
         var merged = Object.assign({}, results[0]);
         fromClickUp.forEach(function (name, index) {

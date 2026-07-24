@@ -289,9 +289,16 @@
     return members || [];
   }
 
-  /** True when tasks should come from ClickUp rather than the spreadsheet. */
+  /**
+   * True when tasks should come from ClickUp rather than the spreadsheet.
+   *
+   * Requires the api backend: ClickUp is only reachable through /api/clickup,
+   * which exists on Vercel and not in local mode. Without this check, opening
+   * the app locally would route tasks to a proxy that isn't there and every
+   * task view would fail — so local mode falls back to the seeded task list.
+   */
   function isActive() {
-    return WOS.config.taskSource === "clickup" && !!listId();
+    return WOS.config.backend === "api" && WOS.config.taskSource === "clickup" && !!listId();
   }
 
   WOS.clickup = {

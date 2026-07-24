@@ -286,7 +286,7 @@
     .then(function (main) {
       page = main;
       page.innerHTML = WOS.ui.skeletonRows(4, 120);
-      return WOS.db.loadAll(["tasks", "divisions", "members", "approvals"]);
+      return WOS.db.loadAll(["tasks", "divisions", "members", "approvals"], ["tasks"]);
     })
     .then(function (loaded) {
       data = loaded;

@@ -507,7 +507,7 @@
       dayEnd.setDate(dayEnd.getDate() + 1);
 
       return Promise.all([
-        WOS.db.loadAll(["members", "tasks", "projects", "notes", "approvals"]),
+        WOS.db.loadAll(["members", "tasks", "projects", "notes", "approvals"], ["tasks"]),
         // Today's schedule is one card among many here, so an unreachable
         // calendar shouldn't cost the user their tasks, projects and
         // approvals as well.

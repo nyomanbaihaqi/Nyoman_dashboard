@@ -435,7 +435,7 @@
 
   function refresh() {
     return WOS.db
-      .loadAll(["projects", "tasks", "comments"])
+      .loadAll(["projects", "tasks", "comments"], ["tasks"])
       .then(function (loaded) {
         data.projects = loaded.projects;
         data.tasks = loaded.tasks;
@@ -462,7 +462,7 @@
     .then(function (main) {
       page = main;
       page.innerHTML = WOS.ui.skeletonRows(4, 120);
-      return WOS.db.loadAll(["projects", "tasks", "members", "milestones", "notes", "meetings", "files", "comments"]);
+      return WOS.db.loadAll(["projects", "tasks", "members", "milestones", "notes", "meetings", "files", "comments"], ["tasks"]);
     })
     .then(function (loaded) {
       data = loaded;

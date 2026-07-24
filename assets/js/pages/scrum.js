@@ -313,6 +313,13 @@
 
   function bind() {
     WOS.on(page, "click", "[data-scrum-new]", function () {
+      // A scrum belongs to a division, and if none exist the dropdown is empty
+      // with no hint why. Say where they're set up instead of opening a form
+      // that can't be submitted.
+      if (!(data.divisions || []).length) {
+        ui.toast(t("scrum.noDivisions"), "error");
+        return;
+      }
       openModal(null);
     });
 

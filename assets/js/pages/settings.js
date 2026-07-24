@@ -47,6 +47,13 @@
     );
   }
 
+  // A fixed palette so a new division gets a distinct colour without the
+  // person having to know the token names. Cycled by position.
+  var DIVISION_COLORS = [
+    "var(--antar-purple)", "var(--sky-600)", "var(--amber-600)",
+    "var(--emerald-600)", "var(--rose-600)", "#0d9488", "#7c3aed", "#db2777",
+  ];
+
   function workspaceTab() {
     return (
       '<div class="card">' +
@@ -63,8 +70,100 @@
           );
         })
         .join("") +
-      "</div>"
+      "</div>" +
+      divisionsSection()
     );
+  }
+
+  /**
+   * The list of divisions, editable. This is the only place they're managed —
+   * every other screen (Daily Scrum, Weekly Review, CEO Assistant, Issues) only
+   * reads them, so an empty list here is why the scrum form has nothing to pick.
+   */
+  function divisionsSection() {
+    var divisions = data.divisions || [];
+
+    return (
+      '<div class="card" style="margin-top:20px">' +
+      '<div class="spread"><h2 class="card__title">' + esc(t("settings.divisions")) + " (" + divisions.length + ")</h2></div>" +
+      '<p class="text-label muted" style="margin-top:4px">' + esc(t("settings.divisionsHint")) + "</p>" +
+
+      (divisions.length
+        ? '<div class="stack stack--sm" style="margin-top:14px">' +
+          divisions
+            .map(function (d) {
+              var lead = data.memberById.get(d.leadId);
+              return (
+                '<div class="row" style="gap:10px">' +
+                '<span style="width:12px;height:12px;border-radius:4px;flex:none;background:' + esc(d.color || "var(--slate-400)") + '"></span>' +
+                '<span class="grow"><span class="text-sm fw-semibold strong" style="display:block">' + esc(d.name) + "</span>" +
+                (lead ? '<span class="text-label muted">' + esc(t("settings.divisionLead", { name: lead.name })) + "</span>" : "") +
+                "</span>" +
+                '<button type="button" class="btn btn--ghost btn--sm" data-division-edit="' + esc(d.id) + '">' + esc(t("action.edit")) + "</button>" +
+                '<button type="button" class="btn btn--ghost btn--sm" data-division-delete="' + esc(d.id) + '" style="color:var(--rose-600)">' + esc(t("action.delete")) + "</button>" +
+                "</div>"
+              );
+            })
+            .join("") +
+          "</div>"
+        : '<p class="text-sm muted" style="margin-top:14px">' + esc(t("settings.noDivisions")) + "</p>") +
+
+      '<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border-subtle)">' +
+      '<button type="button" class="btn btn--outline btn--sm" data-division-new>' +
+      icon("plus", 13) + esc(t("settings.addDivision")) + "</button></div></div>"
+    );
+  }
+
+  function leadOptions(selected) {
+    return (
+      '<option value="">' + esc(t("settings.noLead")) + "</option>" +
+      (data.members || [])
+        .map(function (m) {
+          return '<option value="' + esc(m.id) + '"' + (m.id === selected ? " selected" : "") + ">" + esc(m.name) + "</option>";
+        })
+        .join("")
+    );
+  }
+
+  function openDivisionModal(division) {
+    var editing = !!division;
+    var current = division || { name: "", leadId: "" };
+
+    ui.modal({
+      title: editing ? t("settings.editDivision") : t("settings.addDivision"),
+      body:
+        '<form class="stack">' +
+        '<div class="field"><label class="field__label">' + esc(t("settings.divisionName")) + "</label>" +
+        '<input class="input" name="name" required autofocus value="' + esc(current.name) + '" placeholder="' + esc(t("settings.divisionNamePlaceholder")) + '"></div>' +
+        '<div class="field"><label class="field__label">' + esc(t("settings.divisionLeadLabel")) + "</label>" +
+        '<select class="select" name="leadId">' + leadOptions(current.leadId) + "</select></div>" +
+        '<div class="modal__actions">' +
+        '<button type="button" class="btn btn--ghost" data-close-modal>' + esc(t("action.cancel")) + "</button>" +
+        '<button type="submit" class="btn btn--primary">' + esc(t("action.save")) + "</button></div></form>",
+      onSubmit: function (form) {
+        var formData = new FormData(form);
+        var name = String(formData.get("name") || "").trim();
+        if (!name) return;
+        var leadId = formData.get("leadId") || "";
+
+        var saving;
+        if (division) {
+          saving = WOS.db.update("divisions", division.id, { name: name, leadId: leadId });
+        } else {
+          saving = WOS.db.create("divisions", {
+            name: name,
+            leadId: leadId,
+            // Next colour in the palette, wrapping round.
+            color: DIVISION_COLORS[(data.divisions || []).length % DIVISION_COLORS.length],
+          });
+        }
+
+        saving.then(function () {
+          ui.closeModal();
+          return refresh();
+        });
+      },
+    });
   }
 
   function preferencesTab() {
@@ -211,6 +310,34 @@
       }
     });
 
+    WOS.on(page, "click", "[data-division-new]", function () {
+      openDivisionModal(null);
+    });
+
+    WOS.on(page, "click", "[data-division-edit]", function (event, target) {
+      var division = (data.divisions || []).filter(function (d) {
+        return d.id === target.dataset.divisionEdit;
+      })[0];
+      if (division) openDivisionModal(division);
+    });
+
+    WOS.on(page, "click", "[data-division-delete]", function (event, target) {
+      var division = (data.divisions || []).filter(function (d) {
+        return d.id === target.dataset.divisionDelete;
+      })[0];
+      if (!division) return;
+      if (!window.confirm(t("settings.deleteDivisionConfirm", { name: division.name }))) return;
+      WOS.db.remove("divisions", division.id).then(refresh);
+    });
+  }
+
+  function refresh() {
+    return WOS.db.loadAll(["members", "divisions"]).then(function (loaded) {
+      data.members = loaded.members;
+      data.divisions = loaded.divisions;
+      data.memberById = WOS.indexById(loaded.members);
+      render();
+    });
   }
 
   /* ── Boot ──────────────────────────────────────────────────── */
@@ -220,10 +347,11 @@
     .then(function (main) {
       page = main;
       page.innerHTML = WOS.ui.skeletonRows(3, 140);
-      return WOS.db.loadAll(["members"]);
+      return WOS.db.loadAll(["members", "divisions"]);
     })
     .then(function (loaded) {
       data = loaded;
+      data.memberById = WOS.indexById(loaded.members);
       return WOS.db.currentUser();
     })
     .then(function (user) {

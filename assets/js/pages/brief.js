@@ -722,7 +722,7 @@
       dayEnd.setDate(dayEnd.getDate() + 1);
 
       return Promise.all([
-        WOS.db.loadAll(["tasks", "approvals", "members", "meetings", "notes"]),
+        WOS.db.loadAll(["tasks", "approvals", "members", "meetings", "notes"], ["tasks"]),
         // The agenda is one of three sections. If the calendar is unreachable,
         // the priorities and pending decisions are still worth having, so this
         // degrades to an empty schedule with a warning rather than taking the
